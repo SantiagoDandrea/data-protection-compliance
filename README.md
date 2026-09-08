@@ -60,27 +60,17 @@ data-protection-compliance/
 ### [1. Clasificación de datos](docs/data-classification.md)
 Define una matriz de clasificación adaptada a una aseguradora en cuatro niveles: **Público**, **Interno**, **Confidencial** y **Restringido**. Analiza el impacto legal, reputacional y financiero de una exposición, ilustrado con el incidente real de ransomware a *La Segunda Seguros* (2023) y un caso práctico de SQL Injection.
 
-→ [Ver matriz de clasificación](docs/data-classification.md)
-
 ### [2. Controles de seguridad](docs/security-controls.md)
 Detalla los controles técnicos y organizacionales necesarios para mitigar el riesgo en cada nivel de clasificación: cifrado (en reposo y en tránsito), RBAC, MFA, DLP, logging/monitoring, retención y destrucción segura.
-
-→ [Ver controles de seguridad](docs/security-controls.md)
 
 ### [3. Flujo de datos](docs/data-flow.md)
 Analiza el recorrido de la información desde su ingreso por la web hasta su almacenamiento en bases de datos, backups, logs y reportes. Identifica los riesgos específicos de cada etapa y los puntos críticos de control.
 
-→ [Ver análisis de flujo de datos](docs/data-flow.md)
-
 ### [4. Ley 25.326 (Argentina)](docs/ley-25326.md)
 Sintetiza las obligaciones legales, principios de calidad y finalidad, derechos de los titulares (acceso, rectificación, supresión), transferencias internacionales y las exigencias de seguridad del régimen argentino.
 
-→ [Ver análisis de la Ley 25.326](docs/ley-25326.md)
-
 ### [5. Comparación Ley 25.326 vs. GDPR](docs/gdpr-comparacion.md)
 Contrasta el régimen argentino con el Reglamento General de Protección de Datos europeo, destacando diferencias clave en datos sensibles, el principio de *accountability*, medidas de seguridad y gestión de brechas.
-
-→ [Ver comparación con GDPR](docs/gdpr-comparacion.md)
 
 ---
 
