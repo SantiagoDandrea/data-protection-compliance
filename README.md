@@ -1,22 +1,22 @@
 # Data Protection & Compliance — Sector Asegurador (Argentina)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Regulatory Framework](https://img.shields.io/badge/Framework-Ley_25.326_%7C_GDPR_%7C_ISO_27001-green.svg)](docs/ley-25326.md)
-[![Lab Status](https://img.shields.io/badge/Lab-Python_Standalone_%7C_Docker_Compose-orange.svg)](lab/README.md)
+[![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
+[![Marco Normativo](https://img.shields.io/badge/Marco-Ley_25.326_%7C_GDPR_%7C_ISO_27001-green.svg)](docs/ley-25326.md)
+[![Estado del Lab](https://img.shields.io/badge/Lab-PostgreSQL_16_%7C_Docker-orange.svg)](lab/README.md)
 
 ---
 
-## Executive Summary (English)
+## Resumen Ejecutivo
 
-This repository provides an applied **Cybersecurity Governance, Risk, and Compliance (GRC) and Technical Architecture framework** tailored to an Argentine insurance company.
+Este repositorio presenta un marco de trabajo aplicado de **Gobierno, Riesgo y Cumplimiento (GRC) en Ciberseguridad y Arquitectura Técnica**, adaptado a la operatoria de una aseguradora argentina.
 
-Insurance providers handle a delicate mixture of data: commercial policy contracts (**Confidential**) alongside highly sensitive employee/insured medical diagnoses from workers' compensation (ART) and life insurance (**Restricted** under Argentine Data Protection Law 25.326).
+Las aseguradoras gestionan una combinación crítica de información: contratos y pólizas comerciales (**Confidencial**) junto a diagnósticos médicos de alta sensibilidad de siniestros laborales (ART) y seguros de vida (**Restringido** bajo la Ley 25.326 de Protección de Datos Personales).
 
-Rather than remaining a theoretical paper, this project bridges regulatory mandates with hands-on technical validation:
-- **Reproducible Technical Lab (`lab/`):** Demonstrates how an application-level SQL Injection vulnerability (**MITRE ATT&CK T1190**) enables an attacker to bypass data classification boundaries and exfiltrate health data when connecting via an overprivileged database account, and how **database least-privilege (RBAC / schema isolation)** successfully neutralizes the breach even when software flaws exist.
-- **Applied Defense Controls:** Production-ready regex policies for DLP ([`dlp_rules.json`](lab/controls/dlp_rules.json)), Infrastructure-as-Code Terraform configuration for immutable backups using AWS S3 Object Lock in COMPLIANCE mode ([`terraform_s3_worm_backup.tf`](lab/controls/terraform_s3_worm_backup.tf)) to thwart ransomware attacks (referencing the real-world 2023 *La Segunda Seguros* LockBit breach), and PostgreSQL hardening scripts.
-- **SOC Detection Engineering:** Real-world WAF/DB audit logs and a production-grade **Sigma Rule** ([`sigma_sqli_detection.yml`](lab/detection/sigma_sqli_detection.yml)) for SIEM alerting.
-- **Audited Legal Cross-Check:** Rigorous verification against InfoLEG (Argentine official legal database), including compliance deadlines (Arts. 14 & 16) and a formal rectification of the Criminal Code reform (Law 26.388 repealing Art. 117 bis and establishing Arts. 153 bis & 157 bis).
+En lugar de limitarse a un análisis teórico o documental, este proyecto conecta las obligaciones regulatorias con validación técnica reproducible:
+- **Laboratorio Técnico Reproducible ([`lab/`](lab/README.md)):** Demuestra cómo una inyección SQL a nivel de aplicación (**MITRE ATT&CK T1190**) permite vulnerar las fronteras de clasificación de datos y exfiltrar registros de salud si se utiliza un usuario de base de datos sobreprivilegiado, y cómo el **principio de mínimo privilegio (RBAC y segregación de esquemas)** neutraliza la filtración en el motor de base de datos aun ante fallos de software.
+- **Controles Defensivos Aplicados:** Políticas de DLP con expresiones regulares ([`dlp_rules.json`](lab/controls/dlp_rules.json)), Infraestructura como Código en Terraform para respaldos inmutables con AWS S3 Object Lock en modo COMPLIANCE ([`terraform_s3_worm_backup.tf`](lab/controls/terraform_s3_worm_backup.tf)) contra ransomware (mitigando vectores observados en incidentes reales del sector como el ataque de LockBit a *La Segunda Seguros* en 2023) y scripts de hardening para PostgreSQL.
+- **Ingeniería de Detección para SOC:** Trazas de auditoría reales de WAF/BD y una **regla Sigma** ([`sigma_sqli_detection.yml`](lab/detection/sigma_sqli_detection.yml)) para alertamiento temprano en SIEM.
+- **Auditoría Normativa Exhaustiva:** Verificación directa con InfoLEG, validación de plazos legales (Arts. 14 y 16 de la Ley 25.326) y rectificación de la reforma penal de la Ley 26.388 (derogación del Art. 117 bis e incorporación de los Arts. 153 bis y 157 bis del Código Penal).
 
 ---
 
@@ -47,8 +47,6 @@ flowchart TD
         DB_VULN -.-> S3["AWS S3 Object Lock (WORM Modo COMPLIANCE)<br/><b>Inmune a cifrado de Ransomware (T1486/T1490)</b>"]
     end
 ```
-
----
 
 ---
 
@@ -126,7 +124,7 @@ Este proyecto nació con la intención de entender cómo las leyes de protecció
 
 ---
 
-## Alcance y Límites del Proyecto (Disclaimers)
+## Alcance y Límites del Proyecto (Aclaraciones y Límites)
 
 - **Caso de Estudio Hipotético:** Los nombres de asegurados, coberturas y números de póliza utilizados en el laboratorio y en la documentación son completamente ficticios y creados con fines didácticos. El caso de *La Segunda Seguros* se analiza exclusivamente en base a reportes y coberturas de prensa pública.
 - **Entorno de Laboratorio:** La aplicación incluida en `lab/app/` contiene deliberadamente vulnerabilidades de inyección SQL con propósitos educativos y de concientización. No debe utilizarse en entornos productivos ni exponerse a redes públicas sin los controles mitigantes activados.

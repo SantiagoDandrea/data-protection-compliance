@@ -26,7 +26,7 @@ Todas las modificaciones, revisiones normativas y adiciones técnicas relevantes
 - Eliminación de glosarios redundantes de conceptos básicos de seguridad (MFA, SIEM, WAF) en favor de contextualización operativa directa.
 - Reemplazo de conclusiones estandarizadas por notas de diseño, trade-offs técnicos y dilemas reales (conflicto entre prescripción en seguros y derecho de supresión).
 - Supresión del flowchart simplista `Datos -> Clasificación -> Riesgo` en el README, reemplazándolo por un diagrama de arquitectura integral con fronteras de seguridad y controles por salto.
-- Incorporación de resumen ejecutivo bilingüe (inglés/español), sección de límites del proyecto y licencia MIT.
+- Incorporación de resumen ejecutivo estructurado, sección de límites del proyecto y licencia MIT.
 
 ---
 
