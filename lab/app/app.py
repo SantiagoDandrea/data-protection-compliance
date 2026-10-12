@@ -16,7 +16,10 @@ app = Flask(__name__)
 # Parámetros de conexión a PostgreSQL
 PG_HOST = os.environ.get("DB_HOST", "localhost")
 PG_PORT = os.environ.get("DB_PORT", "5432")
-# Credenciales de base de datos (con fallback para ejecución local)
+PG_DB = os.environ.get("DB_NAME", "aseguradora_db")
+
+# Credenciales de base de datos para el lab local (en producción jamás van hardcodeadas;
+# se usan variables de entorno o un gestor de secretos como HashiCorp Vault / AWS Secrets Manager)
 PASS_OVERPRIVILEGED = os.environ.get("APP_OVERPRIVILEGED_PASS", "password_vulnerable_123")
 PASS_LEAST_PRIVILEGE = os.environ.get("APP_LEAST_PRIVILEGE_PASS", "password_secure_456")
 

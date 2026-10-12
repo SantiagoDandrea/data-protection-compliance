@@ -49,6 +49,8 @@ SELECT
 FROM seguros_core.polizas
 GROUP BY cobertura, DATE_TRUNC('month', vigencia);
 
+-- Concedemos acceso únicamente a la vista disociada (modelo de lista blanca / least privilege).
+-- En PostgreSQL no hace falta hacer REVOKE sobre tablas o esquemas a los que nunca se les otorgó GRANT,
+-- siempre que el rol PUBLIC tenga revocado el USAGE sobre esquemas restringidos.
+GRANT USAGE ON SCHEMA seguros_core TO db_analista_bi;
 GRANT SELECT ON seguros_core.vista_estadistica_siniestros TO db_analista_bi;
-REVOKE SELECT ON seguros_core.polizas FROM db_analista_bi;
-REVOKE ALL ON SCHEMA salud_restringida FROM db_analista_bi;

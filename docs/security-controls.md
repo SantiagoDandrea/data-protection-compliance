@@ -3,7 +3,7 @@
 ## Enfoque de Implementación: De la Política al Código
 Una falla recurrente en los programas de GRC es quedarse en directivas teóricas como *"se debe cifrar la información sensible"* sin definir el protocolo, el algoritmo ni el mecanismo de gestión de claves.
 
-Este documento vincula los 4 niveles de clasificación de [data-classification.md](data-classification.md) con controles técnicos concretos y ejemplos de configuración reales alojados en el directorio [`lab/controls/`](../lab/controls/).
+Este documento vincula los 4 niveles de clasificación de [data-classification.md](data-classification.md) con controles técnicos concretos y ejemplos de configuración aplicados alojados en el directorio [`lab/controls/`](../lab/controls/).
 
 ---
 
@@ -105,9 +105,9 @@ Implementar estos controles en el día a día de una aseguradora genera tensione
 ---
 
 ## Verificación Práctica
-Para comprobar el funcionamiento del control de mínimo privilegio en base de datos frente a un ataque real de SQLi contra PostgreSQL:
+Para comprobar el funcionamiento del control de mínimo privilegio en base de datos frente al intento de inyección SQL:
 ```bash
 docker compose -f lab/docker-compose.yml exec web python test_exploit.py
-# (O desde el host: python lab/test_exploit.py)
+# (O desde tu máquina si tenés psycopg2: python lab/test_exploit.py)
 ```
-O explorar el mapa completo de amenazas en [Flujo de Datos](data-flow.md).
+O ver el mapa completo de amenazas en [Flujo de Datos](data-flow.md).
