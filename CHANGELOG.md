@@ -1,45 +1,37 @@
-# Bitácora de Cambios (Changelog)
+# Bitácora de Desarrollo y Aprendizajes (Changelog)
 
-Todas las modificaciones, revisiones normativas y adiciones técnicas relevantes de este proyecto se registran en este documento.
-
----
-
-## [1.2.0] — 2024-03-02
-### Añadido (Paso de Documentación Teórica a Laboratorio Ejecutable)
-- **Laboratorio Técnico Reproducible (`lab/`):**
-  - Implementación de suite de pruebas técnica en `lab/test_exploit.py`: Script CLI que se conecta a PostgreSQL 16 y reproduce el vector de SQL Injection (MITRE T1190) y el bypass de clasificación de datos desde el nivel Confidencial hacia Restringido (salud), demostrando la mitigación nativa del motor de base de datos (`SQLSTATE 42501`) mediante roles de PostgreSQL.
-  - Implementación de entorno dockerizado (`lab/docker-compose.yml`, `lab/app/`, `lab/db/init.sql`): PostgreSQL 16 con esquemas reales segregados (`seguros_core` vs `salud_restringida`), roles `app_user_overprivileged` y `app_user_least_privilege`, y aplicación interactiva en Flask.
-  - Implementación de controles técnicos aplicados en `lab/controls/`:
-    - `dlp_rules.json`: Reglas de DLP con expresiones regulares para DNI argentino, CUIL/CUIT y diagnósticos médicos (CIE-10).
-    - `terraform_s3_worm_backup.tf`: Infraestructura como Código (IaC) para repositorios de respaldo inmutables con AWS S3 Object Lock en modo COMPLIANCE, claves KMS independientes y protección anti-ransomware (T1486/T1490).
-    - `postgres_hardening.sql`: Script de endurecimiento de PostgreSQL con Row-Level Security (RLS) para Productores Asesores de Seguros (PAS), auditoría con `pg_audit` y revocación de permisos públicos.
-  - Implementación de ingeniería de detección en `lab/detection/`:
-    - `sqli_waf.log`: Muestras realistas de logs de acceso web y base de datos capturando el reconocimiento y la explotación.
-    - `sigma_sqli_detection.yml`: Regla formal Sigma para alertamiento temprano en SIEM (Splunk/Elastic/Wazuh).
-
-### Corregido & Robustecido (Auditoría Normativa)
-- **Corrección en Código Penal Argentino (`docs/ley-25326.md`):** Se identificó y rectificó la cita obsoleta del Art. 117 bis (derogado expresamente por la Ley 26.388 en junio de 2008), clarificando la vigencia de los Arts. 153 bis (acceso ilegítimo) y 157 bis (violación y difusión ilegítima de bancos de datos personales).
-- **Desglose de la Res. AAIP 47/2018:** Se explicitó la derogación de la histórica Disposición 11/2006 y se mapearon las medidas recomendadas del Anexo I (medios informatizados) con la matriz de 4 niveles de clasificación.
-- **Verificación de Plazos:** Cita y verificación contra InfoLEG de los plazos de ejercicio de derechos del titular: Art. 14 (10 días corridos para acceso) y Art. 16 (5 días hábiles para rectificación/supresión).
-
-### Mejorado (Estilo y Humanización)
-- Eliminación de glosarios redundantes de conceptos básicos de seguridad (MFA, SIEM, WAF) en favor de contextualización operativa directa.
-- Reemplazo de conclusiones estandarizadas por notas de diseño, trade-offs técnicos y dilemas reales (conflicto entre prescripción en seguros y derecho de supresión).
-- Supresión del flowchart simplista `Datos -> Clasificación -> Riesgo` en el README, reemplazándolo por un diagrama de arquitectura integral con fronteras de seguridad y controles por salto.
-- Incorporación de resumen ejecutivo estructurado, sección de límites del proyecto y licencia MIT.
+Este documento registra cómo fue evolucionando el proyecto a lo largo de las iteraciones de trabajo (octubre 2026), incluyendo correcciones normativas y ajustes técnicos que fui haciendo sobre la marcha.
 
 ---
 
-## [1.1.0] — 2024-02-15
-### Añadido
-- Análisis del vector de ataque de SQL Injection y su relación con la técnica MITRE ATT&CK T1190.
-- Caso de estudio contextualizado en el sector asegurador argentino: incidente de ransomware en *La Segunda Seguros* (LockBit, febrero 2023).
-- Comparativa formal con el Reglamento General de Protección de Datos (GDPR - Reglamento UE 2016/679).
+## [Iteración 3] — Octubre 2026
+### Ajustes de Realismo, Permisos de Postgres y Honestidad Técnica
+- **Ajuste fino de permisos en PostgreSQL:** Corregí un error conceptual en `lab/db/init.sql`. Había puesto un `REVOKE ALL ON SCHEMA salud_restringida FROM app_user_least_privilege`, pero en Postgres los esquemas nuevos heredan `USAGE` a través del rol `PUBLIC`. Por eso, un `REVOKE` al usuario específico no alcanzaba; agregué `REVOKE ALL ON SCHEMA salud_restringida FROM PUBLIC`. (El bloqueo del exploit funcionaba igual porque la tabla no tenía `SELECT` a PUBLIC, pero el esquema seguía expuesto).
+- **Aclaración sobre logs:** En `lab/detection/sqli_waf.log` y en la documentación dejé en claro que son **logs sintéticos de ejemplo** armados a mano para mostrar qué buscaría un analista de SOC, y no logs reales de un WAF corriendo en producción (el `docker-compose` se mantiene liviano a propósito).
+- **Manejo de credenciales en el Lab:** Agregué `lab/.env.example` y advertencias explícitas en el código indicando que las contraseñas fijas son exclusivamente para poder levantar el laboratorio local en un comando, algo que jamás se hace en producción.
 
 ---
 
-## [1.0.0] — 2024-01-20
-### Lanzamiento Inicial
-- Matriz preliminar de clasificación en 4 niveles (Público, Interno, Confidencial, Restringido) adaptada a una entidad aseguradora.
-- Documento de controles de seguridad teóricos (cifrado, RBAC, backups, logs).
-- Mapeo inicial de flujo de datos y síntesis de la Ley 25.326.
+## [Iteración 2] — Octubre 2026
+### Pasaje a Laboratorio Técnico Ejecutable y Revisión Normativa
+- **Lab ejecutable con PostgreSQL 16 (`lab/`):**
+  - Armé un entorno con Docker Compose con dos esquemas (`seguros_core` y `salud_restringida`) y dos usuarios con privilegios distintos.
+  - Creé `lab/test_exploit.py` para poder correr la inyección SQL (`UNION SELECT`) por consola y ver directamente la excepción de Postgres (`SQLSTATE 42501 - INSUFFICIENT PRIVILEGE`).
+  - Armé una interfaz web sencilla en Flask para quien prefiera probar los payloads con botones.
+- **Controles prácticos de muestra:**
+  - `lab/controls/dlp_rules.json`: Expresiones regulares para detectar DNI, CUIT y términos de salud saliendo por correo.
+  - `lab/controls/terraform_s3_worm_backup.tf`: Ejemplo de bucket S3 con Object Lock en modo COMPLIANCE para frenar ransomware tipo LockBit.
+  - `lab/detection/sigma_sqli_detection.yml`: Regla Sigma para alertar el intento de SQLi en un SIEM.
+- **Auditoría legal y corrección en Código Penal:**
+  - Corregí la cita del Art. 117 bis en `docs/ley-25326.md`: estaba derogado desde 2008 por la Ley 26.388 de Delitos Informáticos. Lo cambié por los artículos vigentes (153 bis y 157 bis).
+  - Verifiqué los plazos de derechos ARCO en InfoLEG (10 días corridos para acceso, 5 días hábiles para rectificación/supresión).
+  - Detallé cómo la Res. AAIP 47/2018 reemplazó la vieja Disposición 11/2006.
+
+---
+
+## [Iteración 1] — Octubre 2026
+### Estructura Inicial y Marco Documental
+- Primer borrador de la matriz de clasificación en 4 niveles adaptada a una aseguradora (Público, Interno, Confidencial, Restringido).
+- Documentación del caso de estudio de ransomware de *La Segunda Seguros* (2023).
+- Comparativa entre la Ley 25.326 argentina y el GDPR europeo (estatus de adecuación, notificación de brechas en 72 horas).
+- Mapa inicial de flujo de datos y controles teóricos.

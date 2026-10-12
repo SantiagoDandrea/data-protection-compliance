@@ -25,7 +25,9 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
-      - DB_NAME=aseguradora_db
+      - DB_NAME=${DB_NAME:-aseguradora_db}
+      - APP_OVERPRIVILEGED_PASS=${APP_OVERPRIVILEGED_PASS:-password_vulnerable_123}
+      - APP_LEAST_PRIVILEGE_PASS=${APP_LEAST_PRIVILEGE_PASS:-password_secure_456}
       - PORT=5000
     ports:
       - "5000:5000"

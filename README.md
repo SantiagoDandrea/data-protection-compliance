@@ -13,10 +13,10 @@ Este repositorio presenta un marco de trabajo aplicado de **Gobierno, Riesgo y C
 Las aseguradoras gestionan una combinación crítica de información: contratos y pólizas comerciales (**Confidencial**) junto a diagnósticos médicos de alta sensibilidad de siniestros laborales (ART) y seguros de vida (**Restringido** bajo la Ley 25.326 de Protección de Datos Personales).
 
 En lugar de limitarse a un análisis teórico o documental, este proyecto conecta las obligaciones regulatorias con validación técnica reproducible:
-- **Laboratorio Técnico Reproducible ([`lab/`](lab/README.md)):** Demuestra cómo una inyección SQL a nivel de aplicación (**MITRE ATT&CK T1190**) permite vulnerar las fronteras de clasificación de datos y exfiltrar registros de salud si se utiliza un usuario de base de datos sobreprivilegiado, y cómo el **principio de mínimo privilegio (RBAC y segregación de esquemas)** neutraliza la filtración en el motor de base de datos aun ante fallos de software.
-- **Controles Defensivos Aplicados:** Políticas de DLP con expresiones regulares ([`dlp_rules.json`](lab/controls/dlp_rules.json)), Infraestructura como Código en Terraform para respaldos inmutables con AWS S3 Object Lock en modo COMPLIANCE ([`terraform_s3_worm_backup.tf`](lab/controls/terraform_s3_worm_backup.tf)) contra ransomware (mitigando vectores observados en incidentes reales del sector como el ataque de LockBit a *La Segunda Seguros* en 2023) y scripts de hardening para PostgreSQL.
-- **Ingeniería de Detección para SOC:** Trazas de auditoría reales de WAF/BD y una **regla Sigma** ([`sigma_sqli_detection.yml`](lab/detection/sigma_sqli_detection.yml)) para alertamiento temprano en SIEM.
-- **Auditoría Normativa Exhaustiva:** Verificación directa con InfoLEG, validación de plazos legales (Arts. 14 y 16 de la Ley 25.326) y rectificación de la reforma penal de la Ley 26.388 (derogación del Art. 117 bis e incorporación de los Arts. 153 bis y 157 bis del Código Penal).
+- **Laboratorio Técnico Reproducible ([`lab/`](lab/README.md)):** Demuestra cómo una inyección SQL a nivel de aplicación (**MITRE ATT&CK T1190**) permite romper las fronteras de clasificación de datos y extraer registros de salud si la base de datos se consulta con una cuenta sobreprivilegiada, y cómo el **principio de mínimo privilegio (RBAC y aislamiento de esquemas)** frena el ataque en el motor de base de datos aun si el código web tiene vulnerabilidades.
+- **Controles Prácticos de Muestra:** Reglas de DLP en regex ([`dlp_rules.json`](lab/controls/dlp_rules.json)), configuración de Terraform para buckets S3 con Object Lock en modo COMPLIANCE ([`terraform_s3_worm_backup.tf`](lab/controls/terraform_s3_worm_backup.tf)) como defensa contra ransomware (inspirado en el incidente de *La Segunda Seguros* de 2023) y scripts de hardening para PostgreSQL.
+- **Detección para SOC:** Trazas sintéticas de muestra basadas en el escenario de ataque y una **regla Sigma** ([`sigma_sqli_detection.yml`](lab/detection/sigma_sqli_detection.yml)) para alertar en SIEM ante intentos de enumeración o SQLi.
+- **Auditoría Legal:** Verificación con InfoLEG (plazos de los Arts. 14 y 16 de la Ley 25.326) y corrección de la reforma penal de la Ley 26.388 (derogación del Art. 117 bis y vigencia de los Arts. 153 bis y 157 bis del Código Penal).
 
 ---
 
@@ -99,8 +99,8 @@ data-protection-compliance/
     │   ├── dlp_rules.json         # Reglas DLP con regex para DNI, CUIT y términos CIE-10
     │   ├── terraform_s3_worm_backup.tf # IaC para backups inmutables anti-ransomware
     │   └── postgres_hardening.sql # Hardening con Row-Level Security y esquemas en PostgreSQL
-    └── detection/                 # Artefactos de SOC y Blue Team
-        ├── sqli_waf.log           # Trazas de ataque correlacionadas (WAF + pgaudit)
+    └── detection/                 # Detección y reglas para SOC
+        ├── sqli_waf.log           # Trazas sintéticas de muestra (WAF y auditoría de BD)
         └── sigma_sqli_detection.yml # Regla de detección Sigma para SIEM
 ```
 
@@ -108,19 +108,22 @@ data-protection-compliance/
 
 ## Qué Aprendí y Qué Haría Diferente (Notas de Autor)
 
-Este proyecto nació con la intención de entender cómo las leyes de protección de datos impactan realmente en el teclado de un ingeniero de seguridad o desarrollador. Durante el proceso me encontré con dilemas que no aparecen en los manuales teóricos:
+Este proyecto nació para entender cómo las exigencias de leyes de datos terminan aterrizando en la práctica en sistemas reales. En el camino me encontré con varias cosas que no suelen verse en la teoría:
 
-1. **La clasificación en papel es una ilusión sin control de acceso en BD:**  
-   Al principio diseñé la matriz de clasificación pensando que bastaba con etiquetar qué era "Confidencial" y qué era "Restringido". Fue al construir el laboratorio de SQLi cuando comprendí que si el usuario de la aplicación web (`db_app`) tiene permisos de `SELECT` sobre toda la base, la clasificación de datos no existe para el atacante. La defensa real exige **segregación de esquemas y mínimo privilegio estricto a nivel de base de datos**.
+1. **La clasificación en papel no frena a nadie si la BD no está segmentada:**  
+   Al principio pensé que bastaba con armar una tabla y decir "esto es Confidencial" y "esto es Restringido". Recién cuando armé el lab de SQLi entendí que si la app web conecta con un usuario que tiene `SELECT` sobre todas las tablas, la clasificación no existe para un atacante. La defensa real exige **roles y esquemas separados en la base de datos**.
 
-2. **El conflicto irresoluble entre Supresión y Retención Legal en Seguros:**  
-   Me costó entender cómo articular el derecho de supresión del Art. 16 de la Ley 25.326 con las obligaciones de la Superintendencia de Seguros de la Nación (SSN). Si un asegurado pide borrar todos sus datos, la empresa no puede eliminarlos físicamente si existe un siniestro pendiente o si no venció la prescripción decenal de ART bajo el Código Civil y Comercial. La solución no es el borrado destructivo, sino el **bloqueo y disociación criptográfica** (*tombstoning* con acceso restringido a requerimientos periciales).
+2. **El conflicto entre borrar datos y tener que guardarlos por ley en seguros:**  
+   Fue un dolor de cabeza entender cómo conjugar el derecho de supresión (Art. 16 Ley 25.326) con las exigencias de la SSN y la prescripción civil/laboral (que puede llegar a 10 años en ART). Un cliente puede pedir que borres todo, pero la aseguradora no puede destruir pólizas si hay un reclamo latente. La salida técnica que encontré es el **bloqueo y disociación** (*tombstoning*), dejando los datos aislados solo para requerimientos periciales o judiciales.
 
-3. **La trampa de los niveles de clasificación:**  
-   Evalué inicialmente utilizar el esquema militar de 5 niveles del DoD/NIST (*Top Secret, Secret, Confidential, etc.*). Lo descarté rápidamente: para una aseguradora privada añade una sobrecarga administrativa que nadie cumple. Luego intenté reducirlo a 3 niveles (*Público, Interno, Confidencial*), pero caí en el error de mezclar el DNI y la póliza de un cliente con sus análisis de quimioterapia. El esquema de **4 niveles** resultó el único viable para separar los datos sensibles tutelados por el Art. 7 de la Ley 25.326.
+3. **El riesgo de armar demasiados niveles de clasificación:**  
+   Primero quise copiar el modelo de 5 niveles del NIST/DoD, pero para una empresa privada es inmanejable y nadie lo cumple. Después quise simplificarlo a 3 (Público, Interno, Confidencial), pero cometí el error de mezclar el DNI de un cliente con un diagnóstico de quimioterapia. El esquema de **4 niveles** fue el punto medio justo para aislar los datos sensibles del Art. 7 de la Ley 25.326.
 
-4. **Revisión normativa rigurosa:**  
-   En las primeras notas del proyecto citaba el Art. 117 bis del Código Penal como sanción por falsedad de datos. Al profundizar en InfoLEG advertí que dicho artículo fue **derogado en 2008 por la Ley 26.388 de Delitos Informáticos**, que incorporó las figuras específicas de los Arts. 153 bis y 157 bis. Documentar esa rectificación en la bitácora ([`CHANGELOG.md`](CHANGELOG.md)) fue un ejercicio clave de revisión profesional.
+4. **Revisión normativa (y corregir un error propio):**  
+   En los primeros borradores cité el Art. 117 bis del Código Penal como sanción penal. Al revisar en InfoLEG me di cuenta de que ese artículo fue **derogado en 2008 por la Ley 26.388 de Delitos Informáticos**, que incorporó los Arts. 153 bis (acceso ilegítimo) y 157 bis (difusión ilegítima). Reconocer ese error y documentarlo en el changelog fue parte del aprendizaje.
+
+5. **El detalle de permisos de esquemas en PostgreSQL:**  
+   Al configurar PostgreSQL pensé que con hacer `REVOKE ALL ON SCHEMA salud_restringida FROM app_user_least_privilege` el esquema quedaba aislado. Pero en Postgres los esquemas nuevos conceden el permiso `USAGE` por omisión al rol `PUBLIC`. Si no haces `REVOKE ALL ... FROM PUBLIC`, cualquier usuario sigue teniendo `USAGE` sobre el esquema. Aunque el exploit se bloqueaba igual porque la tabla no tenía `SELECT` otorgado a `PUBLIC` (el bloqueo venía de la falta de `GRANT`), el esquema seguía siendo visible. Entender esa herencia vía `PUBLIC` fue un aprendizaje clave de DBA.
 
 ---
 

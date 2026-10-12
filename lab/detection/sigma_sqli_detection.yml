@@ -9,8 +9,8 @@ references:
     - https://attack.mitre.org/techniques/T1190/
     - https://owasp.org/www-community/attacks/SQL_Injection
 author: Santiago D'Andrea
-date: 2024-02-24
-modified: 2024-03-01
+date: 2026-10-05
+modified: 2026-10-12
 tags:
     - attack.initial_access
     - attack.t1190

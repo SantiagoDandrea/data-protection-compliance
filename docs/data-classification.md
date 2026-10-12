@@ -103,7 +103,7 @@ docker compose -f lab/docker-compose.yml exec web python test_exploit.py
 
 El script demuestra:
 1. La exfiltración exitosa de diagnósticos oncológicos y traumatológicos bajo el rol `app_user_overprivileged`.
-2. La mitigación inmediata cuando la misma consulta se procesa bajo el rol `app_user_least_privilege` (devolviendo `Permission denied for table historial_medico`).
+2. La mitigación cuando la misma consulta se procesa bajo el rol `app_user_least_privilege`, donde PostgreSQL frena la consulta con el error nativo `SQLSTATE 42501: permission denied for schema salud_restringida`.
 
 ---
 
@@ -119,10 +119,11 @@ Al estructurar este modelo tomé decisiones que descartaron alternativas comunes
 
 ---
 
-## Preguntas Abiertas y Deuda Técnica
+## Dudas Abiertas y Deuda Técnica
 
-- **Clasificación en Datos no Estructurados:** La matriz resuelve con precisión el modelo para bases de datos relacionales. Sin embargo, el 60% de la información médica en aseguradoras ingresa como archivos adjuntos no estructurados (PDFs escaneados de peritajes, imágenes de certificados médicos enviadas por WhatsApp o email). Mapear y etiquetar automáticamente esos adjuntos requiere herramientas de clasificación por OCR/NLP que suelen tener tasas altas de falsos negativos.
-- **Tratamiento de la Cláusula de Interés Legítimo:** A diferencia del GDPR, la Ley 25.326 no reconoce explícitamente el *interés legítimo* como base jurídica autónoma, lo que genera dudas operativas sobre el uso de datos internos para analítica antifraude.
+- **Clasificación en Datos no Estructurados:** La matriz resuelve el modelo para tablas de base de datos. Pero en el día a día de una aseguradora, gran parte de la información médica entra en PDFs escaneados de peritajes o fotos de certificados enviadas por WhatsApp/email. Clasificar eso en automático requiere OCR y modelos de texto que fallan bastante y requieren revisión manual.
+- **Retención vs Supresión (ART):** Queda pendiente resolver con el área legal cómo compatibilizar el derecho de supresión (Art. 16) con los plazos de prescripción de siniestros de ART (que pueden llegar a 10 años según el Código Civil y Comercial y la SSN). Técnicamente se resuelve con bloqueo (*tombstoning*), pero en lo legal sigue siendo un área gris.
+- **Interés Legítimo en Argentina:** A diferencia del GDPR, la Ley 25.326 no reconoce explícitamente el *interés legítimo* como base jurídica autónoma, lo que genera dudas sobre el uso de datos internos para modelos antifraude.
 
 ---
 

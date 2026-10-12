@@ -16,12 +16,14 @@ app = Flask(__name__)
 # Parámetros de conexión a PostgreSQL
 PG_HOST = os.environ.get("DB_HOST", "localhost")
 PG_PORT = os.environ.get("DB_PORT", "5432")
-PG_DB = os.environ.get("DB_NAME", "aseguradora_db")
+# Credenciales de base de datos (con fallback para ejecución local)
+PASS_OVERPRIVILEGED = os.environ.get("APP_OVERPRIVILEGED_PASS", "password_vulnerable_123")
+PASS_LEAST_PRIVILEGE = os.environ.get("APP_LEAST_PRIVILEGE_PASS", "password_secure_456")
 
 def ejecutar_en_postgres(query, user_mode, parameterized=False, param=None):
     """Ejecuta la consulta en PostgreSQL con las credenciales del rol seleccionado."""
     user = "app_user_overprivileged" if user_mode == "overprivileged" else "app_user_least_privilege"
-    password = "password_vulnerable_123" if user_mode == "overprivileged" else "password_secure_456"
+    password = PASS_OVERPRIVILEGED if user_mode == "overprivileged" else PASS_LEAST_PRIVILEGE
     
     conn = psycopg2.connect(
         host=PG_HOST, port=PG_PORT, dbname=PG_DB,

@@ -92,5 +92,5 @@ En defensa en profundidad, un *choke point* es un cuello de botella arquitectón
 
 ---
 
-## Verificación de Detección en SOC
-Los eventos generados a lo largo de este flujo son capturados en la traza [`lab/detection/sqli_waf.log`](../lab/detection/sqli_waf.log) y activan la alerta [`lab/detection/sigma_sqli_detection.yml`](../lab/detection/sigma_sqli_detection.yml), garantizando que el SOC disponga de contexto forense para iniciar el triaje en menos de 15 minutos.
+## Detección en SOC y Reglas Sigma
+Para ilustrar cómo se vería este escenario en operaciones de seguridad, en [`lab/detection/sqli_waf.log`](../lab/detection/sqli_waf.log) se incluye una muestra sintética de eventos correlacionados (WAF + BD) diseñada para disparar la regla Sigma ([`lab/detection/sigma_sqli_detection.yml`](../lab/detection/sigma_sqli_detection.yml)), permitiendo al SOC detectar el ataque antes de que escale a una exfiltración masiva.

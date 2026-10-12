@@ -13,6 +13,7 @@ Todo el entorno corre sobre **PostgreSQL 16** con esquemas físicos y roles inde
 ```text
 lab/
 ├── docker-compose.yml            # Orquestación de PostgreSQL 16 y Servicio Web Flask
+├── .env.example                  # Plantilla de variables de entorno y nota de credenciales
 ├── test_exploit.py               # Script CLI que ejecuta el ataque y verifica la respuesta de Postgres
 ├── app/
 │   ├── Dockerfile
@@ -27,7 +28,7 @@ lab/
 │   ├── terraform_s3_worm_backup.tf # IaC para backups inmutables S3 Object Lock (Anti-ransomware)
 │   └── postgres_hardening.sql    # Hardening de PostgreSQL (RLS, auditoría, schemas)
 └── detection/
-    ├── sqli_waf.log              # Trazas reales de ataque en logs de WAF y BD
+    ├── sqli_waf.log              # Trazas sintéticas de muestra (WAF y BD)
     └── sigma_sqli_detection.yml  # Regla Sigma para detección e integración con SIEM
 ```
 
@@ -101,5 +102,5 @@ http://localhost:5000
    - Configuración de Row-Level Security (RLS) para Productores Asesores de Seguros (PAS), revocación del esquema público y vistas disociadas para analistas de Business Intelligence.
 
 4. **Detección en SOC / SIEM ([`detection/`](detection/)):**
-   - `sqli_waf.log`: Trazas correlacionadas entre WAF (ModSecurity) y `pgaudit`.
-   - `sigma_sqli_detection.yml`: Regla genérica en formato Sigma para alertar tempranamente sobre la técnica **MITRE ATT&CK T1190**.
+   - `sqli_waf.log`: Trazas sintéticas de ejemplo generadas para ilustrar la correlación entre eventos de WAF (ModSecurity) y auditoría de base de datos (`pgaudit`).
+   - `sigma_sqli_detection.yml`: Regla en formato Sigma para alertar tempranamente sobre la técnica **MITRE ATT&CK T1190**.
