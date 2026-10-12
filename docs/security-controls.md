@@ -1,109 +1,113 @@
-# Controles de Seguridad según Clasificación
+# Controles de Seguridad Técnicos y Organizacionales
 
-## Objetivo
-El objetivo de este documento es definir qué controles de seguridad técnicos y organizacionales deben aplicarse a la información según el nivel de clasificación establecido en [data-classification.md](data-classification.md).
+## Enfoque de Implementación: De la Política al Código
+Una falla recurrente en los programas de GRC es quedarse en directivas teóricas como *"se debe cifrar la información sensible"* sin definir el protocolo, el algoritmo ni el mecanismo de gestión de claves.
 
-La clasificación permite identificar qué información necesita mayor protección, pero por sí sola no protege los datos. El paso siguiente es vincular cada nivel con los riesgos específicos que enfrenta y con los controles necesarios para mitigarlos.
+Este documento vincula los 4 niveles de clasificación de [data-classification.md](data-classification.md) con controles técnicos concretos y ejemplos de configuración aplicados alojados en el directorio [`lab/controls/`](../lab/controls/).
 
-La idea es aplicar controles proporcionales al impacto de una posible exposición: un dato público no requiere las mismas medidas que un diagnóstico médico o una credencial administrativa.
+---
 
-## Relación entre clasificación, riesgo y controles
+## Matriz Operativa de Controles por Nivel
 
-El modelo de decisión responde a la siguiente secuencia:
-```text
-Dato
-  ↓
-Clasificación
-  ↓
-Riesgo
-  ↓
-Control
-```
-
-Por ejemplo, ante un diagnóstico médico:
-```text
-Diagnóstico médico
-  ↓
-Restringido (Dato sensible - Ley 25.326)
-  ↓
-Filtración con impacto legal severo y daño a la intimidad
-  ↓
-Cifrado fuerte + RBAC estricto + MFA obligatorio + DLP + Monitoreo dedicado
-```
-
-Mientras que para un dato operativo como el número de póliza:
-```text
-Número de póliza
-  ↓
-Confidencial
-  ↓
-Uso indebido de información personal o contractual
-  ↓
-Cifrado estándar + RBAC + Logging de acceso + Política de retención
-```
-
-De esta manera, los controles no se implementan de forma aislada, sino directamente fundamentados en el riesgo que reducen.
-
-## Matriz de controles técnicos y organizacionales
-
-| Nivel | Riesgos principales | Controles técnicos | Controles organizacionales |
+| Nivel | Amenazas Principales | Controles Técnicos Obligatorios | Controles Organizacionales |
 |---|---|---|---|
-| **Público** | Modificación o publicación no autorizada | Controles de integridad web, backups estándar y monitoreo de disponibilidad. | Procedimiento formal de aprobación de publicaciones externas. |
-| **Interno** | Acceso interno indebido o fuga accidental | Autenticación centralizada, RBAC básico y registro de eventos del sistema. | Acuerdos de confidencialidad, capacitación inicial y políticas de uso aceptable. |
-| **Confidencial** | Filtración de datos de clientes, pólizas o información financiera | Cifrado en reposo y en tránsito (TLS), RBAC granular, MFA en accesos remotos, DLP y logging de consultas. | Principio de necesidad de conocer (*need to know*), control de proveedores y revisión periódica de accesos. |
-| **Restringido** | Exfiltración de datos de salud, credenciales o claves maestras | Cifrado reforzado, segmentación estricta de red, MFA obligatorio, tokenización, SIEM, FIM y backups inmutables. | Autorización nominal documentada, auditorías trimestrales de privilegios y protocolo de destrucción segura. |
+| **Público** | Desfiguración web (*defacement*), indisponibilidad por DDoS. | TLS 1.3, Rate Limiting perimetral, hosting estático o CDN con WAF, verificación de integridad en CI/CD. | Procedimiento formal de aprobación de contenidos antes de publicación externa. |
+| **Interno** | Fuga accidental entre empleados, abuso de credenciales estándar. | Autenticación centralizada (SSO/IdP), RBAC por departamento, antivirus/EDR en endpoints, logging básico de accesos. | Acuerdos de confidencialidad (NDA), política de puesto de trabajo limpio, inducción de seguridad. |
+| **Confidencial** | Exfiltración de cartera de clientes, robo de identidad con DNI/CUIT. | Cifrado en tránsito obligatorio (HTTPS/TLS 1.3), cifrado en reposo a nivel de volumen (AES-256), DLP en correo saliente, MFA para accesos remotos y consultas parametrizadas. | Principio de necesidad de conocer (*need to know*), auditoría semestral de accesos y cláusulas de datos con proveedores (Art. 12 Ley 25.326). |
+| **Restringido** | Filtración de historias clínicas de ART/Vida, exfiltración masiva por ransomware (doble extorsión), compromiso de llaves criptográficas. | Cifrado de columna/campo (`pgcrypto`), segregación estricta de esquemas en base de datos, MFA FIDO2/WebAuthn obligatorio, backups inmutables (**S3 Object Lock WORM**), auditoría con `pg_audit` y correlación en SIEM. | Autorización nominal documentada por oficial de seguridad médica/legales, revisión trimestral de privilegios y protocolo de destrucción criptográfica (*crypto-shredding*). |
 
-## Detalle de los controles de seguridad
+---
 
-### Cifrado en tránsito
-Protege los datos mientras viajan a través de redes públicas o internas.
-- En la relación cliente-servidor web se implementa mediante **TLS 1.3** (o 1.2 como mínimo admisible) con suites de cifrado seguras.
-- En las comunicaciones internas (por ejemplo, entre la API y el servidor de base de datos) evita que el tráfico no cifrado sea interceptado si un actor malicioso gana presencia en la red interna.
-- Es obligatorio para los niveles **Confidencial** y **Restringido**.
+## Implementaciones Técnicas Aplicadas
 
-### Cifrado en reposo
-Protege la información cuando se encuentra almacenada en medios persistentes (bases de datos, sistemas de archivos, discos y cintas de backup).
-- Si un atacante extrae una copia cruda de una base de datos o accede físicamente a un almacenamiento, el cifrado evita que la información sea legible sin las claves criptográficas adecuadas.
-- Las claves de cifrado deben gestionarse de forma independiente a los datos almacenados (utilizando servicios de KMS o módulos HSM).
-- Es prioritario para tablas con datos de clientes e indispensable para datos de salud.
+### 1. Inmutabilidad de Backups contra Ransomware (WORM)
+Durante el ataque a *La Segunda Seguros* (2023), como en casi todo incidente de ransomware moderno, los operadores de **LockBit** intentaron destruir los respaldos en disco y Active Directory para forzar el pago del rescate.
 
-### RBAC (Role-Based Access Control)
-Permite restringir el acceso a los datos según la función que desempeña cada usuario dentro de la organización.
-- Un suscriptor de pólizas comerciales no tiene justificación para consultar historias clínicas de reclamos de ART.
-- Implementa el principio de **mínimo privilegio**, limitando el daño potencial si una cuenta de usuario es vulnerada.
+Para neutralizar este vector, la arquitectura implementa almacenamiento **WORM (Write Once Read Many)** mediante **AWS S3 Object Lock en modo COMPLIANCE**. En este modo, ni siquiera la cuenta `root` o un atacante con permisos `AdministratorAccess` puede eliminar o sobreescribir los archivos de backup antes de que venza el período de retención:
 
-### MFA (Multi-Factor Authentication)
-Exige al menos dos factores de autenticación distintos (algo que se sabe, algo que se tiene o algo que se es) antes de conceder acceso.
-- Reduce drásticamente el impacto de ataques de phishing o reutilización de credenciales filtradas.
-- Su aplicación debe ser obligatoria para cualquier acceso remoto (VPN), portales de empleados y especialmente para cuentas con privilegios administrativos.
+```hcl
+# Fragmento extraído de lab/controls/terraform_s3_worm_backup.tf
+resource "aws_s3_bucket_object_lock_configuration" "backup_lock" {
+  bucket = aws_s3_bucket.immutable_backup_vault.id
 
-### DLP (Data Loss Prevention)
-Herramientas orientadas a monitorear y bloquear intentos de transferir información clasificada fuera del perímetro autorizado.
-- En una aseguradora se configura con reglas para detectar patrones de DNI, números de tarjetas de crédito o términos médicos en correos salientes, subidas web o copias a dispositivos USB.
-- Actúa como salvaguarda frente a errores humanos o exfiltración maliciosa por parte de usuarios internos.
-
-### Logging y monitoreo
-El registro continuo de eventos permite saber quién accedió a qué información y cuándo.
-- Deben registrarse inicios de sesión, cambios de privilegios, consultas masivas a bases de datos y accesos a registros médicos.
-- Los logs deben enviarse a un sistema centralizado (**SIEM**) con protección contra modificación, permitiendo correlacionar alertas e investigar incidentes en tiempo real.
-
-### Retención y destrucción segura
-Mantener datos históricos sin justificación legal o de negocio incrementa innecesariamente la superficie de ataque.
-- La **retención** fija plazos formales de conservación según las obligaciones regulatorias del sector seguros (por ejemplo, plazos de prescripción de siniestros).
-- La **destrucción segura** asegura que, una vez vencido el plazo, los registros digitales sean sobreescritos o desasociados criptográficamente (*crypto-shredding*) para evitar su recuperación forense.
-
-## Implementación en capas en una aseguradora
-
-En la práctica, ningún control opera de manera aislada. Se implementa una estrategia de **defensa en profundidad**:
-
-```text
-Perímetro web    → WAF + TLS en tránsito
-Identidad        → MFA + RBAC
-Servidor / API   → Validación de entradas + Mínimo privilegio en DB
-Almacenamiento   → Cifrado en reposo (TDE / disco)
-Operaciones      → Logging centralizado + DLP + Backups inmutables
+  rule {
+    default_retention {
+      mode = "COMPLIANCE" # Inmutable: bloquea sobreescritura y borrado
+      days = 90           # Ventana garantizada de recuperación ante desastres
+    }
+  }
+}
 ```
+*Código completo disponible en:* [`lab/controls/terraform_s3_worm_backup.tf`](../lab/controls/terraform_s3_worm_backup.tf).
 
-Si el control perimetral falla (por ejemplo, ante una vulnerabilidad web), los controles de almacenamiento e identidad (cifrado y RBAC) impiden que el atacante extraiga libremente la totalidad de la información restringida.
+---
 
-Para comprender cómo transita la información a través de estas capas en una arquitectura real, el análisis continúa en [data-flow.md](data-flow.md).
+### 2. Prevención de Fuga de Datos (DLP) para Identidad y Diagnósticos
+El control de DLP perimetral inspecciona el tráfico saliente de correo electrónico y web proxies para interceptar datos no autorizados.
+
+En Argentina, el DLP debe diferenciar un DNI común de un diagnóstico de salud:
+- **DNI/CUIT (Confidencial):** Si un analista envía un correo a un cliente con su póliza, no se bloquea; pero si se detectan más de 3 números de documento saliendo a un correo externo, se genera cuarentena preventiva.
+- **Términos Médicos / CIE-10 (Restringido):** La coincidencia de palabras clave como *"peritaje psiquiátrico"*, *"quimioterapia"* o códigos CIE-10 junto a datos personales activa el bloqueo automático y una alerta inmediata al SOC:
+
+```json
+// Fragmento de lab/controls/dlp_rules.json
+{
+  "id": "DLP-AR-003",
+  "name": "Detección de Datos Médicos Sensibles (CIE-10 / Términos de Salud)",
+  "classification_level": "Restringido",
+  "detection": {
+    "match_type": "hybrid",
+    "keywords": ["historia clínica", "diagnóstico médico", "incapacidad laboral", "siniestro art"],
+    "regex_cie10": "\\b[A-Z][0-9]{2}(\\.[0-9]{1,2})?\\b"
+  },
+  "action": "block_and_alert_immediate"
+}
+```
+*Configuración completa disponible en:* [`lab/controls/dlp_rules.json`](../lab/controls/dlp_rules.json).
+
+---
+
+### 3. Segregación de Privilegios y Row Level Security en Base de Datos
+Para impedir que una vulnerabilidad web exponga la base de datos completa (como se demostró en el laboratorio ejecutable de SQLi), se implementan dos capas en PostgreSQL:
+1. **Separación de Esquemas:** Las tablas de pólizas residen en `seguros_core`, mientras que las historias clínicas residen en `salud_restringida`.
+2. **Row Level Security (RLS):** Garantiza que un Productor Asesor de Seguros (PAS) solo pueda consultar las pólizas de su cartera:
+
+```sql
+-- Fragmento de lab/controls/postgres_hardening.sql
+ALTER TABLE seguros_core.polizas ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY pas_aislamiento_polizas ON seguros_core.polizas
+    FOR SELECT
+    TO pas_usuario_portal
+    USING (productor_asignado_id = current_setting('app.current_productor_id', true));
+```
+*Script completo disponible en:* [`lab/controls/postgres_hardening.sql`](../lab/controls/postgres_hardening.sql).
+
+---
+
+### 4. Detección y Operación de SOC (Sigma Rule)
+Los controles preventivos fallan tarde o temprano; por eso es mandatorio contar con capacidad de detección rápida.
+
+El intento de salto de esquema mediante SQL Injection (`' UNION SELECT ... FROM salud_restringida.historial_medico`) es capturado en los logs de acceso del WAF y correlacionado mediante la regla Sigma formal [`lab/detection/sigma_sqli_detection.yml`](../lab/detection/sigma_sqli_detection.yml), que mapea directamente a la técnica **MITRE ATT&CK T1190** e instruye al SOC a aislar la IP origen.
+
+---
+
+## Fricciones Operativas y Trade-offs Reales
+
+Implementar estos controles en el día a día de una aseguradora genera tensiones técnicas que deben administrarse:
+
+1. **Cifrado de Campo vs. Rendimiento de Consultas:**  
+   Cifrar columnas completas con `pgcrypto` o mediante KMS impide el uso eficiente de índices B-Tree en bases de datos relacionales. Si se cifra el DNI, no se puede hacer un `WHERE dni = '...'` de forma indexada sin descifrar o utilizar técnicas de cifrado determinista / tokenización, las cuales aumentan la complejidad arquitectónica. Por eso, para datos Confidenciales se prioriza **TDE (Transparent Data Encryption)** a nivel de disco/volumen, reservando el cifrado de columna para la tabla de diagnósticos médicos (**Restringido**).
+
+2. **DLP y Falsos Positivos en la Atención al Cliente:**  
+   Un filtro de DLP demasiado estricto sobre términos médicos puede bloquear correos legítimos enviados por peritos médicos externos o liquidadores de siniestros de ART. Se requiere un canal seguro específico (portal de siniestros con autenticación MFA y carga encriptada) para evitar que los médicos utilicen el correo electrónico convencional.
+
+---
+
+## Verificación Práctica
+Para comprobar el funcionamiento del control de mínimo privilegio en base de datos frente al intento de inyección SQL:
+```bash
+docker compose -f lab/docker-compose.yml exec web python test_exploit.py
+# (O desde tu máquina si tenés psycopg2: python lab/test_exploit.py)
+```
+O ver el mapa completo de amenazas en [Flujo de Datos](data-flow.md).

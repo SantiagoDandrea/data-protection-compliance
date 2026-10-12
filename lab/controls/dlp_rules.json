@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "policy_name": "DLP-ASEGURADORA-DATA-PROTECTION-AR",
+  "version": "1.4.0",
+  "description": "Reglas de Data Loss Prevention para canales salientes (Email Gateway, Web Proxy, Endpoint USB). Mapeado a Ley 25.326 y Res. AAIP 47/2018.",
+  "rules": [
+    {
+      "id": "DLP-AR-001",
+      "name": "Detección de DNI Argentino en Tránsito no Autorizado",
+      "classification_level": "Confidencial",
+      "regulatory_basis": "Ley 25.326 Art. 4 y 9",
+      "detection": {
+        "match_type": "regex",
+        "pattern": "\\b(DNI|DOCUMENTO|LEGAJO)?:?\\s?([0-9]{1,2}\\.?[0-9]{3}\\.?[0-9]{3})\\b",
+        "min_occurrences": 3
+      },
+      "action": "log_and_quarantine",
+      "justification": "La salida masiva de números de documento expone la base de asegurados a robo de identidad y campañas de phishing dirigido."
+    },
+    {
+      "id": "DLP-AR-002",
+      "name": "Detección de CUIT / CUIL Argentino",
+      "classification_level": "Confidencial",
+      "regulatory_basis": "Ley 25.326 Art. 9 / Res. AAIP 47/2018",
+      "detection": {
+        "match_type": "regex",
+        "pattern": "\\b(20|23|24|27|30|33|34)-?[0-9]{8}-?[0-9]\\b",
+        "min_occurrences": 2
+      },
+      "action": "log_and_notify_soc",
+      "justification": "Identificador tributario y previsional de asegurados y empresas contratantes de pólizas corporativas."
+    },
+    {
+      "id": "DLP-AR-003",
+      "name": "Detección de Datos Médicos Sensibles (CIE-10 / Términos de Salud)",
+      "classification_level": "Restringido",
+      "regulatory_basis": "Ley 25.326 Art. 2 y 7 (Datos Sensibles de Salud)",
+      "detection": {
+        "match_type": "hybrid",
+        "keywords": [
+          "historia clínica", "diagnóstico médico", "peritaje psiquiátrico",
+          "incapacidad laboral", "accidente de trabajo", "quimioterapia",
+          "psicofármaco", "anamnesis", "siniestro art", "eprisis"
+        ],
+        "regex_cie10": "\\b[A-Z][0-9]{2}(\\.[0-9]{1,2})?\\b",
+        "min_keyword_matches": 1
+      },
+      "action": "block_and_alert_immediate",
+      "justification": "Bloqueo estricto e inmediato. La exfiltración de diagnósticos de siniestros viola el deber de secreto profesional (Art. 10) y genera responsabilidad civil/penal agravada."
+    },
+    {
+      "id": "DLP-AR-004",
+      "name": "Tarjetas de Crédito / Débito (PCI-DSS)",
+      "classification_level": "Confidencial / Financiero",
+      "regulatory_basis": "PCI-DSS v4.0 / Ley 25.326",
+      "detection": {
+        "match_type": "regex_and_luhn",
+        "pattern": "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\\b"
+      },
+      "action": "block",
+      "justification": "Los datos de pago de primas jamás deben salir por canales no cifrados ni permanecer en correos convencionales."
+    }
+  ],
+  "exceptions": {
+    "trusted_domains": [
+      "@ssn.gob.ar",
+      "@srt.gob.ar",
+      "@afip.gob.ar"
+    ],
+    "required_controls": [
+      "TLS_1_3_MANDATORY",
+      "S_MIME_ENCRYPTION_FOR_RESTRICTED"
+    ]
+  }
+}

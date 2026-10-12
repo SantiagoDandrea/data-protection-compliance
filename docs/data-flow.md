@@ -1,85 +1,96 @@
-# Flujo de Datos — Aseguradora Argentina
+# Flujo de Datos y Mapeo de Amenazas (MITRE ATT&CK)
 
-## Objetivo
-El objetivo de este documento es identificar el recorrido que realizan los datos dentro de una aseguradora: desde que son ingresados por el asegurado hasta que se procesan, almacenan, respaldan o utilizan para generar reportes.
+## Objetivo Arquitectónico
+Analizar el flujo de datos dentro de una aseguradora permite identificar el ciclo de vida de la información: desde que ingresa por el portal público hasta que se procesa en el backend, se almacena en bases de datos relacionales, se respalda en repositorios inmutables y se audita en el SIEM.
 
-Analizar el flujo permite determinar en qué componentes residen los datos, qué nivel máximo de clasificación alcanzan en cada tramo y qué controles de [security-controls.md](security-controls.md) deben implementarse para reducir el riesgo de exposición.
+Cada salto entre componentes representa una frontera de confianza (*Trust Boundary*) donde los niveles de clasificación definidos en [data-classification.md](data-classification.md) deben ser forzados por los controles de [security-controls.md](security-controls.md).
 
-## Arquitectura y flujo general
+---
 
-El siguiente esquema representa el flujo típico de información dentro de los servicios digitales de una aseguradora:
+## Diagrama de Arquitectura y Fronteras de Control
 
 ```mermaid
 flowchart TD
-    A[Cliente / Asegurado] -->|HTTPS / TLS| B[Portal Web / App Móvil]
-    B --> C[WAF]
-    C --> D[API Gateway]
-    D --> E[Servidor de Aplicación]
-    E -->|Consultas seguras| F[(Base de Datos Principal)]
-    F -->|Copia periódica cifrada| G[Almacenamiento de Backup]
-    F -->|Extracción de datos| H[Servicio de Reporting / BI]
-    E -->|Eventos de seguridad| I[Logs del Sistema]
-    I --> J[SIEM]
+    subgraph Zona_Publica ["1. Perímetro Público & Clientes"]
+        A["Cliente / Asegurado"] 
+        PAS["Productor Asesor (PAS)"]
+    end
+
+    subgraph Perimetro_Inspeccion ["2. Inspección & Filtrado"]
+        CDN["Cloudflare / CDN"]
+        WAF["WAF (OWASP CRS / Rate Limiting)<br/><b>Control: Bloqueo T1190</b>"]
+    end
+
+    subgraph DMZ_Servicios ["3. Zona Desmilitarizada (DMZ)"]
+        API["API Gateway<br/><b>Control: mTLS + OAuth2 / JWT</b>"]
+        APP["Servidor de Aplicación (Core Seguros)<br/><b>Control: Consultas Parametrizadas</b>"]
+    end
+
+    subgraph Zona_Datos ["4. Repositorio Central de Datos"]
+        DB[("PostgreSQL Principal")]
+        subgraph Schemas_Postgres ["Segregación en Motor"]
+            S_CORE["seguros_core (Pólizas)<br/><b>Nivel: Confidencial</b>"]
+            S_SALUD["salud_restringida (Historias Clínicas)<br/><b>Nivel: Restringido</b>"]
+        end
+    end
+
+    subgraph Zona_Respaldo ["5. Almacenamiento Aislado"]
+        S3_BACKUP["AWS S3 Object Lock (WORM)<br/><b>Control: Modo COMPLIANCE (Anti-T1490)</b>"]
+    end
+
+    subgraph SOC_Monitoreo ["6. Centro de Operaciones de Seguridad (SOC)"]
+        LOGS["Audit Logs (WAF + pgaudit)"]
+        SIEM["SIEM (Wazuh / Elastic / Sentinel)<br/><b>Control: Reglas Sigma SQLi & Brute Force</b>"]
+    end
+
+    %% Conexiones
+    A -->|HTTPS / TLS 1.3| CDN
+    PAS -->|HTTPS / MFA| CDN
+    CDN --> WAF
+    WAF -->|Tráfico Inspeccionado| API
+    API -->|Tokens Validados| APP
+    APP -->|Rol: app_user_least_privilege| S_CORE
+    APP -.->|Acceso Denegado por RBAC| S_SALUD
+
+    DB --> S_CORE
+    DB --> S_SALUD
+
+    DB -->|Dumps Cifrados con KMS| S3_BACKUP
+    WAF -->|Logs HTTP| LOGS
+    APP -->|Logs de Auditoría| LOGS
+    DB -->|Logs de pgaudit| LOGS
+    LOGS --> SIEM
 ```
 
-## Recorrido del dato por etapas
+---
 
-### 1. Entrada de datos (Cliente → Web)
-El usuario ingresa información a través de formularios en el portal o la aplicación móvil:
-- Datos personales y de contacto (DNI, domicilio, teléfono).
-- Información de bienes a asegurar (vehículos, inmuebles).
-- Denuncias de siniestros y documentación adjunta.
-- Información médica en seguros de vida o accidentes laborales.
+## Mapeo Completo de Amenazas: MITRE ATT&CK vs. Flujo de Datos
 
-En este punto conviven datos **Confidenciales** con datos **Restringidos** (salud). El canal de comunicación debe estar protegido mediante TLS para evitar la intercepción de credenciales o información en tránsito.
+A diferencia de un análisis genérico centrado únicamente en inyecciones web, una aseguradora enfrenta un abanico de tácticas y técnicas de adversarios reales (como se constató en incidentes de ransomware como LockBit):
 
-### 2. Procesamiento e intermediación (Web → WAF → API → Servidor de Aplicación)
-Las peticiones atraviesan los componentes de intermediación:
-- El **WAF** filtra intentos de explotación comunes (inyecciones, ataques de denegación de servicio a nivel aplicativo y tráfico malicioso automatizado).
-- El **API Gateway** y el **Servidor de Aplicación** validan la identidad del usuario, verifican tokens de sesión y aplican reglas de negocio antes de consultar la base de datos.
-- En este tramo los riesgos principales son la manipulación de parámetros, el abuso de autorización de endpoints (**BOLA**) y la inyección de código.
-
-### 3. Almacenamiento persistente (Servidor → Base de Datos)
-La base de datos almacena tanto la información contractual como los datos de salud de los asegurados.
-- Constituye el activo más crítico de la arquitectura.
-- Requiere controles de **cifrado en reposo**, mínimo privilegio en las cuentas de conexión de la aplicación y segmentación de red para que el motor de base de datos no tenga exposición directa a Internet.
-
-### 4. Respaldo (Base de Datos → Backup)
-La información se replica periódicamente a repositorios de backup:
-- Los respaldos contienen copias exactas de datos Confidenciales y Restringidos.
-- Representan un vector habitual en incidentes de ransomware: si un atacante compromete los backups, puede extorsionar con la filtración masiva o destruir las copias para impedir la recuperación del negocio.
-- Requieren **cifrado con claves independientes**, almacenamiento inmutable o desconectado (*air-gap*) y acceso estrictamente restringido.
-
-### 5. Generación de registros (Servidor → Logs → SIEM)
-La aplicación y los servicios perimetrales generan registros de actividad:
-- Permiten auditar quién consultó o modificó determinada póliza o historial médico.
-- Los logs deben protegerse para evitar que contengan información sensible en texto plano (como contraseñas o diagnósticos) y deben ser inmutables para garantizar su validez en investigaciones forenses.
-
-### 6. Reportería y análisis (Base de Datos → Reporting)
-La información se utiliza internamente para análisis de siniestralidad, balance financiero y auditoría:
-- Debe aplicarse el principio de **mínimo privilegio**: las áreas administrativas o comerciales deben acceder a reportes agregados o datos disociados, sin visibilidad sobre diagnósticos médicos.
-
-## Análisis de riesgo por etapa
-
-| Etapa | Datos que transitan | Nivel máximo | Riesgo principal | Control técnico clave |
+| Salto del Flujo | Amenaza Identificada | Técnica MITRE ATT&CK | Nivel Comprometido | Mitigación Técnica / Blue Team |
 |---|---|---|---|---|
-| **Cliente → Web** | Credenciales, datos personales, denuncias | Restringido | Intercepción de tráfico, robo de credenciales | Cifrado TLS 1.3, MFA, Rate limiting |
-| **Web → WAF → API** | Solicitudes autenticadas, tokens | Confidencial | Explotación de vulnerabilidades expuestas, abuso de APIs | WAF, validación estricta de esquemas |
-| **API → Servidor App** | Datos de negocio en procesamiento | Restringido | Falla de autorización (BOLA), ejecución indebida | RBAC a nivel de servicio, tokens firmados |
-| **Servidor → Base de Datos** | Registros de pólizas, clientes y salud | Restringido | Inyección SQL, acceso no autorizado a tablas sensibles | Consultas parametrizadas, mínimo privilegio en DB, segmentación |
-| **Base de Datos → Backup** | Copias completas del repositorio | Restringido | Cifrado malicioso por ransomware, robo de copias | Backups inmutables, cifrado independiente, aislamiento |
-| **Servidor → Logs → SIEM** | Trazas de auditoría y eventos | Interno / Confidencial | Manipulación de evidencias, exposición de datos en logs | Envío centralizado a SIEM, enmascaramiento de datos |
-| **Base de Datos → Reporting** | Datos analíticos y operativos | Confidencial | Fuga interna por exceso de privilegios | Control de acceso por rol (RBAC), disociación de datos |
+| **Cliente → Web** | Robo de credenciales de portal de asegurados / Productores (PAS). | **T1078 — Valid Accounts**<br/>**T1110 — Brute Force** | Confidencial | MFA obligatorio (FIDO2 / TOTP), Rate limiting y bloqueo por IP/reputación en WAF. |
+| **Web → API** | Explotación de vulnerabilidad de software en cotizador de pólizas. | **T1190 — Exploit Public-Facing Application** | Confidencial → Restringido | Reglas WAF (OWASP CRS), consultas parametrizadas obligatorias y escaneo SAST/DAST en CI/CD. |
+| **Servidor → DB** | Volcado de datos médicos mediante escalamiento de esquema en SQLi. | **T1005 — Data from Local System**<br/>**T1068 — Exploitation for Privilege Escalation** | Restringido (Salud) | Segregación de roles (`app_user_least_privilege`), revocación de acceso a `salud_restringida`, RLS. |
+| **Terminal → Email** | Empleado o perito médico reenvía legajos de ART a casilla personal. | **T1567 — Exfiltration Over Web Service**<br/>**T1052 — Exfiltration Over Physical Medium** | Restringido | Agente DLP perimetral bloqueando regex de DNI/CIE-10 ([`dlp_rules.json`](../lab/controls/dlp_rules.json)) y bloqueo de puertos USB. |
+| **DB → Almacenamiento** | Actor malicioso despliega ransomware para extorsión y paralización. | **T1486 — Data Encrypted for Impact** | Confidencial / Restringido | EDR con comportamiento antimalware, microsegmentación de red y principio de mínimo privilegio. |
+| **DB → Backup** | Atacante intenta destruir o cifrar las copias de seguridad de siniestros. | **T1490 — Inhibit System Recovery** | Restringido | Backups inmutables con **S3 Object Lock en modo COMPLIANCE** ([`terraform_s3_worm_backup.tf`](../lab/controls/terraform_s3_worm_backup.tf)). |
+| **Eventos → SIEM** | Intento de evasión o borrado de trazas de acceso indebido. | **T1070 — Indicator Removal** | Interno / Confidencial | Envío continuo de logs por syslog seguro hacia SIEM con retención *Append-Only* inmutable. |
 
-El **nivel máximo** determina el estándar de seguridad que debe exigirse a todo el componente: si por una etapa transita un solo dato Restringido, el canal debe configurarse para proteger ese nivel de criticidad.
+---
 
-## Puntos críticos de riesgo en la aseguradora
+## Puntos de Estrangulamiento (*Choke Points*) Críticos
 
-1. **Exposición de copias de seguridad:** Como se observó en el incidente de *La Segunda Seguros*, los repositorios de archivos y backups suelen ser el objetivo principal de los atacantes para exfiltrar volúmenes masivos de datos sin interactuar tabla por tabla con la base de datos de producción.
-2. **Exceso de privilegios en el acceso interno:** Si el personal de atención al cliente puede ver información médica asociada a un siniestro sin que su tarea lo justifique, se incumple el principio de necesidad de conocer y se amplía la superficie de fuga.
-3. **Retención documental excesiva:** Conservar expedientes de siniestros finalizados durante más tiempo del exigido por ley incrementa el volumen de datos expuestos ante cualquier compromiso de almacenamiento.
+En defensa en profundidad, un *choke point* es un cuello de botella arquitectónico donde el equipo de seguridad puede detener un ataque antes de que alcance la información más crítica:
 
-## Conclusión
-La clasificación de datos cobra sentido práctico cuando se proyecta sobre el flujo arquitectónico.
+1. **La frontera entre la aplicación y el motor de datos:**  
+   Si el atacante burla el WAF y encuentra un fallo de código (T1190), el *choke point* es el usuario de base de datos. Si el usuario de base de datos tiene permisos globales, la brecha es total. Si el usuario está encapsulado en el esquema de pólizas, la intrusión queda contenida sin fuga de diagnósticos médicos. *(Demostrado en [`lab/test_exploit.py`](../lab/test_exploit.py))*.
 
-No basta con definir que una historia clínica es un dato Restringido: es indispensable verificar que viaje cifrada por TLS, que el servidor web no tenga permisos directos para leerla sin autenticación estricta, que no quede guardada en texto plano en los logs de la aplicación y que sus copias de seguridad estén aisladas contra ransomware.
+2. **La frontera entre el entorno de producción y el vault de backups:**  
+   Si el atacante toma el control del Directorio Activo (Dominio), intentará borrar los backups para obligar al rescate. El *choke point* es el aislamiento del repositorio S3 en una cuenta de AWS independiente con Object Lock activado, impidiendo que credenciales del dominio de producción puedan alterar las copias.
+
+---
+
+## Detección en SOC y Reglas Sigma
+Para ilustrar cómo se vería este escenario en operaciones de seguridad, en [`lab/detection/sqli_waf.log`](../lab/detection/sqli_waf.log) se incluye una muestra sintética de eventos correlacionados (WAF + BD) diseñada para disparar la regla Sigma ([`lab/detection/sigma_sqli_detection.yml`](../lab/detection/sigma_sqli_detection.yml)), permitiendo al SOC detectar el ataque antes de que escale a una exfiltración masiva.

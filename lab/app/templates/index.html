@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Técnico: Bypass de Clasificación & Mínimo Privilegio | Aseguradora GRC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #0a0e17;
+            --bg-card: rgba(18, 26, 43, 0.75);
+            --border-card: rgba(56, 189, 248, 0.15);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.3);
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            --font-code: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(239, 68, 68, 0.05) 0px, transparent 50%);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 1.5rem;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: var(--primary);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            margin-bottom: 0.8rem;
+        }
+
+        h1 {
+            font-size: 2.1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            max-width: 800px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 860px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 0.75rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: #fff;
+            font-family: var(--font-code);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .quick-payloads {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .quick-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 0.55rem 0.85rem;
+            color: #cbd5e1;
+            font-size: 0.82rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .quick-btn:hover {
+            background: rgba(56, 189, 248, 0.12);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #fff;
+            transform: translateX(3px);
+        }
+
+        .role-selector {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .role-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            cursor: pointer;
+            padding: 0.4rem;
+            border-radius: 6px;
+        }
+
+        .role-option:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .role-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.85rem;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.85rem 1.25rem;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.35);
+        }
+
+        .btn-submit:hover {
+            background: linear-gradient(135deg, #0369a1, #075985);
+            transform: translateY(-1px);
+        }
+
+        .code-box {
+            background: #060910;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            padding: 0.85rem;
+            font-family: var(--font-code);
+            font-size: 0.8rem;
+            color: #38bdf8;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-bottom: 1rem;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            margin-bottom: 1rem;
+        }
+
+        .status-breach {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+
+        .status-blocked {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+        }
+
+        .status-normal {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #7dd3fc;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            margin-top: 0.5rem;
+        }
+
+        .results-table th {
+            text-align: left;
+            padding: 0.6rem;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+
+        .results-table td {
+            padding: 0.6rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+        }
+
+        .badge-confidencial {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            font-size: 0.68rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .badge-restringido {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            font-size: 0.68rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .callout-box {
+            background: rgba(15, 23, 42, 0.6);
+            border-left: 3px solid var(--primary);
+            padding: 0.75rem 1rem;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.82rem;
+            color: #cbd5e1;
+            margin-top: 1rem;
+        }
+
+        .callout-box.breach {
+            border-left-color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .callout-box.mitigated {
+            border-left-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #64748b;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-badge">
+                <span>🛡️ GRC & SOC LAB</span>
+                <span>•</span>
+                <span>Motor: PostgreSQL 16 (RBAC & Schemas)</span>
+            </div>
+            <h1>Bypass de Clasificación de Datos & Mínimo Privilegio</h1>
+            <p class="subtitle">
+                Demostración técnica del caso planteado en el documento de clasificación: cómo una inyección SQL salta de datos contractuales <strong>(Confidencial)</strong> a historias clínicas <strong>(Restringido - Ley 25.326)</strong> y cómo se contiene mediante segregación de privilegios en base de datos.
+            </p>
+        </header>
+
+        <div class="grid">
+            <!-- Columna Izquierda: Controles del Ataque -->
+            <div class="card">
+                <div class="card-title">
+                    <span>⚡ Vector de Explotación (MITRE T1190)</span>
+                </div>
+
+                <label for="polizaInput">Parámetro de Entrada (Póliza):</label>
+                <input type="text" id="polizaInput" value="POL-2026-001" placeholder="Ej: POL-2026-001 o inyección SQL">
+
+                <label>Cargas Útiles de Prueba (Quick Payloads):</label>
+                <div class="quick-payloads">
+                    <button class="quick-btn" onclick="setPayload('POL-2026-001', false)">
+                        <span>1. Consulta Legítima (Póliza estándar)</span>
+                        <span class="badge-confidencial">CONFIDENCIAL</span>
+                    </button>
+                    <button class="quick-btn" onclick="setPayload(`POL-9999' UNION SELECT dni, paciente, diagnostico || ' (Tratamiento: ' || tratamiento || ')', 0 FROM salud_restringida.historial_medico --`, false)">
+                        <span>2. SQLi UNION SELECT (Bypass a Salud)</span>
+                        <span class="badge-restringido">SALTO A RESTRINGIDO</span>
+                    </button>
+                    <button class="quick-btn" onclick="setPayload(`' OR 1=1 --`, false)">
+                        <span>3. Volcado completo de pólizas (' OR 1=1)</span>
+                        <span class="badge-confidencial">CONFIDENCIAL</span>
+                    </button>
+                </div>
+
+                <label>Configuración de Seguridad en Base de Datos:</label>
+                <div class="role-selector">
+                    <label class="role-option">
+                        <input type="radio" name="dbRole" value="overprivileged" checked>
+                        <div>
+                            <strong>Cuenta App Legacy (Overprivileged)</strong>
+                            <div class="role-desc">Acceso irrestricto a todas las tablas del negocio (Antipatrón).</div>
+                        </div>
+                    </label>
+                    <label class="role-option">
+                        <input type="radio" name="dbRole" value="least_privilege">
+                        <div>
+                            <strong>Cuenta Least Privilege (RBAC Endurecido)</strong>
+                            <div class="role-desc">Solo acceso a pólizas. Esquema médico estrictamente bloqueado.</div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="checkbox-row">
+                    <input type="checkbox" id="chkParam">
+                    <label for="chkParam" style="margin:0; text-transform:none; cursor:pointer;">
+                        Habilitar consultas parametrizadas en backend (Mitigación en código)
+                    </label>
+                </div>
+
+                <button class="btn-submit" onclick="ejecutarTest()">Ejecutar Petición</button>
+            </div>
+
+            <!-- Columna Derecha: Inspección y Resultados de Seguridad -->
+            <div class="card">
+                <div class="card-title">
+                    <span>🔬 Telemetría & Análisis de Impacto</span>
+                </div>
+
+                <div id="statusBadge" class="status-pill status-normal">
+                    <span>Esperando ejecución...</span>
+                </div>
+
+                <label>Sentencia SQL Ejecutada en el Motor:</label>
+                <div id="queryBox" class="code-box">SELECT ...</div>
+
+                <label>Respuesta del Repositorio de Datos:</label>
+                <div id="resultsContainer" style="overflow-x: auto; max-height: 220px;">
+                    <p style="color: var(--text-muted); font-size: 0.85rem;">Presiona "Ejecutar Petición" para visualizar el tráfico.</p>
+                </div>
+
+                <div id="calloutBox" class="callout-box" style="display: none;">
+                    <div id="calloutText"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            Proyecto Data Protection & Compliance — Caso Aseguradora Argentina | Ley 25.326 & Res. AAIP 47/2018 | Autor: Santiago D'Andrea
+        </footer>
+    </div>
+
+    <script>
+        function setPayload(text, isParam) {
+            document.getElementById('polizaInput').value = text;
+            document.getElementById('chkParam').checked = isParam;
+        }
+
+        async function ejecutarTest() {
+            const poliza = document.getElementById('polizaInput').value;
+            const userMode = document.querySelector('input[name="dbRole"]:checked').value;
+            const parameterized = document.getElementById('chkParam').checked;
+
+            const resContainer = document.getElementById('resultsContainer');
+            const queryBox = document.getElementById('queryBox');
+            const statusBadge = document.getElementById('statusBadge');
+            const calloutBox = document.getElementById('calloutBox');
+            const calloutText = document.getElementById('calloutText');
+
+            resContainer.innerHTML = '<p style="color:#94a3b8;">Enviando solicitud al backend...</p>';
+
+            try {
+                const response = await fetch('/api/consultar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        poliza: poliza,
+                        user_mode: userMode,
+                        parameterized: parameterized
+                    })
+                });
+
+                const data = await response.json();
+                queryBox.textContent = data.query || 'N/A';
+
+                if (data.status === 'error') {
+                    statusBadge.className = 'status-pill status-blocked';
+                    statusBadge.innerHTML = '⚠️ ERROR DE BASE DE DATOS';
+                    resContainer.innerHTML = `
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 0.8rem; color: #fca5a5; font-family: monospace; font-size: 0.85rem;">
+                            <strong>Error devuelto por PostgreSQL:</strong><br>
+                            ${data.error || data.explanation || 'Error desconocido'}
+                        </div>
+                    `;
+                    calloutBox.style.display = 'none';
+                    return;
+                }
+
+                if (data.status === 'blocked') {
+                    statusBadge.className = 'status-pill status-blocked';
+                    statusBadge.innerHTML = '🛡️ MITIGACIÓN ACTIVA: ACCESO DENEGADO POR BD';
+                    
+                    resContainer.innerHTML = `
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 0.8rem; color: #fca5a5; font-family: monospace; font-size: 0.8rem;">
+                            <strong>PostgreSQL Security Exception:</strong><br>
+                            ${data.error}
+                        </div>
+                    `;
+
+                    calloutBox.style.display = 'block';
+                    calloutBox.className = 'callout-box mitigated';
+                    calloutText.innerHTML = `<strong>ÉXITO ARQUITECTÓNICO:</strong> ${data.explanation}`;
+                    return;
+                }
+
+                if (data.classification_breach) {
+                    statusBadge.className = 'status-pill status-breach';
+                    statusBadge.innerHTML = '🚨 DATA BREACH: SALTO DE CLASIFICACIÓN CONFIRMADO';
+
+                    calloutBox.style.display = 'block';
+                    calloutBox.className = 'callout-box breach';
+                    calloutText.innerHTML = `<strong>INFRACCIÓN REGULATORIA (Ley 25.326 Art. 7 y 9):</strong> Se han expuesto diagnósticos médicos protegidos a través de una función web pública debido a privilegios excesivos del usuario de base de datos.`;
+                } else {
+                    statusBadge.className = 'status-pill status-normal';
+                    statusBadge.innerHTML = '✔️ CONSULTA CONFORME (NIVEL CONFIDENCIAL)';
+                    calloutBox.style.display = 'none';
+                }
+
+                if (!data.results || data.results.length === 0) {
+                    resContainer.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem;">No se encontraron registros para la consulta.</p>';
+                    return;
+                }
+
+                let html = '<table class="results-table"><thead><tr>';
+                data.columns.forEach(col => {
+                    html += `<th>${col}</th>`;
+                });
+                html += '<th>Clasificación</th></tr></thead><tbody>';
+
+                data.results.forEach(row => {
+                    html += '<tr>';
+                    let isHealth = false;
+                    data.columns.forEach(col => {
+                        const val = row[col];
+                        html += `<td>${val}</td>`;
+                        if (/diagnostico|paciente|clonazepam|neoplasia|hernia|hipoacusia/i.test(val)) {
+                            isHealth = true;
+                        }
+                    });
+                    html += `<td>${isHealth ? '<span class="badge-restringido">RESTRINGIDO (SALUD)</span>' : '<span class="badge-confidencial">CONFIDENCIAL</span>'}</td>`;
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                resContainer.innerHTML = html;
+
+            } catch (err) {
+                resContainer.innerHTML = `<p style="color:#ef4444;">Error en la comunicación: ${err.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

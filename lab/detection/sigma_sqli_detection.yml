@@ -1,0 +1,53 @@
+title: Intento de SQL Injection con Salto de Clasificación en Portal de Seguros
+id: 8b4c3e21-5f12-4d89-9a10-2e4b89012345
+status: experimental
+description: |
+    Detecta patrones de SQL Injection en peticiones HTTP dirigidas al portal web de pólizas,
+    específicamente intentos de enumeración o UNION SELECT orientados a exfiltrar datos
+    de esquemas no autorizados (como datos médicos o credenciales).
+references:
+    - https://attack.mitre.org/techniques/T1190/
+    - https://owasp.org/www-community/attacks/SQL_Injection
+author: Santiago D'Andrea
+date: 2026-10-05
+modified: 2026-10-12
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - attack.collection
+    - attack.t1005
+    - cve.owasp_top_10_a03
+logsource:
+    category: webserver
+    definition: 'Logs de acceso NGINX, Apache o WAF (ModSecurity / AWS WAF)'
+detection:
+    selection_path:
+        cs-method:
+            - 'GET'
+            - 'POST'
+        c-uri-stem|contains:
+            - '/api/consultar'
+            - '/cotizar'
+            - '/polizas'
+    selection_sqli_keywords:
+        c-uri-query|contains:
+            - 'union select'
+            - 'union%20select'
+            - 'order by'
+            - 'order%20by'
+            - 'or 1=1'
+            - 'or%201=1'
+            - 'information_schema'
+            - 'salud_restringida'
+            - 'historial_medico'
+    condition: selection_path and selection_sqli_keywords
+falsepositives:
+    - Pruebas autorizadas de pentest / ethical hacking.
+    - Nombres de pólizas atípicos que contengan palabras reservadas (muy infrecuente).
+level: high
+fields:
+    - c-ip
+    - cs-method
+    - c-uri-stem
+    - c-uri-query
+    - sc-status
