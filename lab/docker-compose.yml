@@ -30,6 +30,8 @@ services:
     ports:
       - "5000:5000"
     volumes:
+      - ./app/app.py:/app/app.py
+      - ./app/templates:/app/templates
       - ./test_exploit.py:/app/test_exploit.py:ro
     depends_on:
       db:

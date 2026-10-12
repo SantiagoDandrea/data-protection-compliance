@@ -485,6 +485,19 @@
                 const data = await response.json();
                 queryBox.textContent = data.query || 'N/A';
 
+                if (data.status === 'error') {
+                    statusBadge.className = 'status-pill status-blocked';
+                    statusBadge.innerHTML = '⚠️ ERROR DE BASE DE DATOS';
+                    resContainer.innerHTML = `
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 0.8rem; color: #fca5a5; font-family: monospace; font-size: 0.85rem;">
+                            <strong>Error devuelto por PostgreSQL:</strong><br>
+                            ${data.error || data.explanation || 'Error desconocido'}
+                        </div>
+                    `;
+                    calloutBox.style.display = 'none';
+                    return;
+                }
+
                 if (data.status === 'blocked') {
                     statusBadge.className = 'status-pill status-blocked';
                     statusBadge.innerHTML = '🛡️ MITIGACIÓN ACTIVA: ACCESO DENEGADO POR BD';
