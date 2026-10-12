@@ -87,7 +87,7 @@ Si la aplicación web conecta a la base de datos utilizando un único usuario co
 SELECT numero_poliza, titular, cobertura, prima FROM polizas WHERE numero_poliza = 'POL-2026-001';
 
 -- Payload del atacante (MITRE ATT&CK T1190 / T1005):
-POL-9999' UNION SELECT dni, paciente, diagnostico, tratamiento FROM historial_medico --
+POL-9999' UNION SELECT dni, paciente, diagnostico || ' (Tratamiento: ' || tratamiento || ')', 0 FROM salud_restringida.historial_medico --
 ```
 
 El atacante utiliza un parámetro público de pólizas para saltar al esquema de salud. **La clasificación fracasó porque no se tradujo en permisos de base de datos.**
