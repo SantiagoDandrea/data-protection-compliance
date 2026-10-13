@@ -27,14 +27,14 @@
 El Artículo 32.1.c del GDPR exige textualmente:
 > *«La capacidad de restaurar la disponibilidad y el acceso a los datos personales de forma rápida en caso de incidente físico o técnico.»*
 
-En el sector asegurador argentino, la disponibilidad de las pólizas es crítica para emitir coberturas y abonar indemnizaciones de siniestros. Ante ataques destructivos (como LockBit en *La Segunda*), la resiliencia no se logra con una cinta de backup guardada en el mismo centro de cómputos: exige repositorios con **inmutabilidad criptográfica y separación lógica de identidades**, tal como se diseñó en el laboratorio con [`terraform_s3_worm_backup.tf`](../lab/controls/terraform_s3_worm_backup.tf).
+En el sector asegurador argentino, la disponibilidad de las pólizas es crítica para emitir coberturas y abonar indemnizaciones de siniestros. Ante ataques destructivos (como LockBit en *La Segunda*), la resiliencia no se logra con una cinta de backup guardada en el mismo centro de cómputos: exige repositorios con **inmutabilidad criptográfica y separación lógica de identidades**, mediante patrones de almacenamiento WORM (S3 Object Lock).
 
 ### 2. Notificación en 72 Horas: La Presión Operativa en el SOC
 En una empresa sujeta al GDPR, el reloj de 72 horas comienza a correr desde el momento en que se adquiere "conocimiento cierto" (*awareness*) de una intrusión que afecte datos personales.
 
 Esto modifica el diseño del monitoreo:
 - Sin correlación en tiempo real (SIEM), un incidente puede pasar meses inadvertido (*dwell time* promedio: 16 días en LATAM).
-- Con reglas de detección tempranas como [`sigma_sqli_detection.yml`](../lab/detection/sigma_sqli_detection.yml), el equipo de SOC contiene el salto de clasificación antes de que se complete la exfiltración masiva, permitiendo documentar ante el regulador que los datos no salieron del perímetro o que se encontraban cifrados con claves seguras.
+- Con reglas de detección tempranas (como reglas de correlación Sigma), el equipo de SOC contiene el salto de clasificación antes de que se complete la exfiltración masiva, permitiendo documentar ante el regulador que los datos no salieron del perímetro o que se encontraban cifrados con claves seguras.
 
 ---
 

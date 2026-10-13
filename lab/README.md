@@ -21,15 +21,8 @@ lab/
 │   ├── app.py                    # Servidor web Flask (conexión nativa psycopg2)
 │   └── templates/
 │       └── index.html            # Dashboard web para probar payloads desde el navegador
-├── db/
-│   └── init.sql                  # DDL de PostgreSQL: esquemas segregados, datos y roles
-├── controls/
-│   ├── dlp_rules.json            # Reglas de DLP con regex para DNI, CUIT y CIE-10
-│   ├── terraform_s3_worm_backup.tf # IaC para backups inmutables S3 Object Lock (Anti-ransomware)
-│   └── postgres_hardening.sql    # Hardening de PostgreSQL (RLS, auditoría, esquemas)
-└── detection/
-    ├── sqli_waf.log              # Logs sintéticos de muestra (WAF y BD)
-    └── sigma_sqli_detection.yml  # Regla Sigma para detección e integración con SIEM
+└── db/
+    └── init.sql                  # DDL de PostgreSQL: esquemas segregados, datos y roles
 ```
 
 ---
@@ -89,20 +82,13 @@ http://localhost:5000
 
 ---
 
-## Controles Complementarios Incluidos
+## Controles Complementarios y Extensiones a Futuro
 
-1. **Prevención de Fuga de Datos ([`controls/dlp_rules.json`](controls/dlp_rules.json)):**
-   - Reglas en JSON para agentes de DLP o Mail Gateways con regex para detectar DNI, CUIT y diagnósticos bajo el estándar CIE-10 en correos salientes.
-
-2. **Inmutabilidad contra Ransomware ([`controls/terraform_s3_worm_backup.tf`](controls/terraform_s3_worm_backup.tf)):**
-   - Código Terraform para armar un bucket S3 con **Object Lock en modo COMPLIANCE** (WORM), impidiendo que un ransomware pueda borrar o cifrar las copias de seguridad de siniestros.
-
-3. **Seguridad en PostgreSQL ([`controls/postgres_hardening.sql`](controls/postgres_hardening.sql)):**
-   - Row-Level Security (RLS) para Productores de Seguros (PAS), cierre de permisos en esquemas y vistas disociadas para analistas de Business Intelligence.
-
-4. **Detección para SOC ([`detection/`](detection/)):**
-   - `sqli_waf.log`: Muestra sintética de logs de acceso HTTP y auditoría de base de datos para ilustrar el escenario de ataque.
-   - `sigma_sqli_detection.yml`: Regla Sigma para alertar en SIEM cuando alguien intenta enumerar o inyectar payloads SQLi (**MITRE ATT&CK T1190**).
+Para profundizar en la seguridad de este escenario sin sobrecargar el laboratorio local de Docker, el proyecto contempla en su hoja de ruta ([ver sección Roadmap en el README principal](../README.md#controles-y-secciones-a-sumar-roadmap-a-futuro)):
+- **Backups Inmutables (WORM con S3 Object Lock):** Arquitectura contra ransomware con Terraform (caso *La Segunda Seguros*).
+- **Detección para SOC (Reglas Sigma):** Monitoreo perimetral y correlación en SIEM para ataques SQLi (MITRE ATT&CK T1190).
+- **Prevención de Fuga de Datos (DLP):** Inspección de correo saliente con detección de DNI, CUIT y diagnósticos CIE-10.
+- **Row-Level Security (RLS) en PostgreSQL:** Aislamiento dinámico de pólizas por cartera de Productor Asesor de Seguros (PAS).
 
 ---
 

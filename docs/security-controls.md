@@ -3,7 +3,7 @@
 ## Enfoque de Implementación: De la Política al Código
 Una falla recurrente en los programas de GRC es quedarse en directivas teóricas como *"se debe cifrar la información sensible"* sin definir el protocolo, el algoritmo ni el mecanismo de gestión de claves.
 
-Este documento vincula los 4 niveles de clasificación de [data-classification.md](data-classification.md) con controles técnicos concretos y ejemplos de configuración aplicados alojados en el directorio [`lab/controls/`](../lab/controls/).
+Este documento vincula los 4 niveles de clasificación de [data-classification.md](data-classification.md) con controles técnicos concretos y patrones de configuración recomendados para una arquitectura corporativa (ver [Roadmap en README](../README.md#controles-y-secciones-a-sumar-roadmap-a-futuro)).
 
 ---
 
@@ -38,7 +38,7 @@ resource "aws_s3_bucket_object_lock_configuration" "backup_lock" {
   }
 }
 ```
-*Código completo disponible en:* [`lab/controls/terraform_s3_worm_backup.tf`](../lab/controls/terraform_s3_worm_backup.tf).
+*(Patrón de arquitectura IaC especificado para la hoja de ruta de infraestructura en producción).*
 
 ---
 
@@ -63,7 +63,7 @@ En Argentina, el DLP debe diferenciar un DNI común de un diagnóstico de salud:
   "action": "block_and_alert_immediate"
 }
 ```
-*Configuración completa disponible en:* [`lab/controls/dlp_rules.json`](../lab/controls/dlp_rules.json).
+*(Patrón de inspección propuesto para la hoja de ruta de prevención de fuga).*
 
 ---
 
@@ -81,14 +81,14 @@ CREATE POLICY pas_aislamiento_polizas ON seguros_core.polizas
     TO pas_usuario_portal
     USING (productor_asignado_id = current_setting('app.current_productor_id', true));
 ```
-*Script completo disponible en:* [`lab/controls/postgres_hardening.sql`](../lab/controls/postgres_hardening.sql).
+*(Patrón de hardening propuesto para aislamiento fino a nivel de registro en base de datos).*
 
 ---
 
 ### 4. Detección y Operación de SOC (Sigma Rule)
 Los controles preventivos fallan tarde o temprano; por eso es mandatorio contar con capacidad de detección rápida.
 
-El intento de salto de esquema mediante SQL Injection (`' UNION SELECT ... FROM salud_restringida.historial_medico`) es capturado en los logs de acceso del WAF y correlacionado mediante la regla Sigma formal [`lab/detection/sigma_sqli_detection.yml`](../lab/detection/sigma_sqli_detection.yml), que mapea directamente a la técnica **MITRE ATT&CK T1190** e instruye al SOC a aislar la IP origen.
+El intento de salto de esquema mediante SQL Injection (`' UNION SELECT ... FROM salud_restringida.historial_medico`) debe ser capturado en los logs de acceso del WAF y correlacionado mediante reglas de detección (formato **Sigma**), mapeadas a la técnica **MITRE ATT&CK T1190** para instruir al SOC a aislar la IP origen.
 
 ---
 

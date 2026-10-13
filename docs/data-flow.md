@@ -73,9 +73,9 @@ A diferencia de un análisis genérico centrado únicamente en inyecciones web, 
 | **Cliente → Web** | Robo de credenciales de portal de asegurados / Productores (PAS). | **T1078 — Valid Accounts**<br/>**T1110 — Brute Force** | Confidencial | MFA obligatorio (FIDO2 / TOTP), Rate limiting y bloqueo por IP/reputación en WAF. |
 | **Web → API** | Explotación de vulnerabilidad de software en cotizador de pólizas. | **T1190 — Exploit Public-Facing Application** | Confidencial → Restringido | Reglas WAF (OWASP CRS), consultas parametrizadas obligatorias y escaneo SAST/DAST en CI/CD. |
 | **Servidor → DB** | Volcado de datos médicos mediante escalamiento de esquema en SQLi. | **T1005 — Data from Local System**<br/>**T1068 — Exploitation for Privilege Escalation** | Restringido (Salud) | Segregación de roles (`app_user_least_privilege`), revocación de acceso a `salud_restringida`, RLS. |
-| **Terminal → Email** | Empleado o perito médico reenvía legajos de ART a casilla personal. | **T1567 — Exfiltration Over Web Service**<br/>**T1052 — Exfiltration Over Physical Medium** | Restringido | Agente DLP perimetral bloqueando regex de DNI/CIE-10 ([`dlp_rules.json`](../lab/controls/dlp_rules.json)) y bloqueo de puertos USB. |
+| **Terminal → Email** | Empleado o perito médico reenvía legajos de ART a casilla personal. | **T1567 — Exfiltration Over Web Service**<br/>**T1052 — Exfiltration Over Physical Medium** | Restringido | Agente DLP perimetral bloqueando regex de DNI/CIE-10 y bloqueo de puertos USB. |
 | **DB → Almacenamiento** | Actor malicioso despliega ransomware para extorsión y paralización. | **T1486 — Data Encrypted for Impact** | Confidencial / Restringido | EDR con comportamiento antimalware, microsegmentación de red y principio de mínimo privilegio. |
-| **DB → Backup** | Atacante intenta destruir o cifrar las copias de seguridad de siniestros. | **T1490 — Inhibit System Recovery** | Restringido | Backups inmutables con **S3 Object Lock en modo COMPLIANCE** ([`terraform_s3_worm_backup.tf`](../lab/controls/terraform_s3_worm_backup.tf)). |
+| **DB → Backup** | Atacante intenta destruir o cifrar las copias de seguridad de siniestros. | **T1490 — Inhibit System Recovery** | Restringido | Backups inmutables con **S3 Object Lock en modo COMPLIANCE** (WORM). |
 | **Eventos → SIEM** | Intento de evasión o borrado de trazas de acceso indebido. | **T1070 — Indicator Removal** | Interno / Confidencial | Envío continuo de logs por syslog seguro hacia SIEM con retención *Append-Only* inmutable. |
 
 ---
@@ -88,9 +88,9 @@ En defensa en profundidad, un *choke point* es un cuello de botella arquitectón
    Si el atacante burla el WAF y encuentra un fallo de código (T1190), el *choke point* es el usuario de base de datos. Si el usuario de base de datos tiene permisos globales, la brecha es total. Si el usuario está encapsulado en el esquema de pólizas, la intrusión queda contenida sin fuga de diagnósticos médicos. *(Demostrado en [`lab/test_exploit.py`](../lab/test_exploit.py))*.
 
 2. **La frontera entre el entorno de producción y el vault de backups:**  
-   Si el atacante toma el control del Directorio Activo (Dominio), intentará borrar los backups para obligar al rescate. El *choke point* es el aislamiento del repositorio S3 en una cuenta de AWS independiente con Object Lock activado, impidiendo que credenciales del dominio de producción puedan alterar las copias.
+   Si el atacante toma el control del Directorio Activo (Dominio), intentará borrar los backups para obligar al rescate. El *choke point* es el aislamiento del repositorio S3 en una cuenta de nube independiente con Object Lock activado, impidiendo que credenciales del dominio de producción puedan alterar las copias.
 
 ---
 
-## Detección en SOC y Reglas Sigma
-Para ilustrar cómo se vería este escenario en operaciones de seguridad, en [`lab/detection/sqli_waf.log`](../lab/detection/sqli_waf.log) se incluye una muestra sintética de eventos correlacionados (WAF + BD) diseñada para disparar la regla Sigma ([`lab/detection/sigma_sqli_detection.yml`](../lab/detection/sigma_sqli_detection.yml)), permitiendo al SOC detectar el ataque antes de que escale a una exfiltración masiva.
+## Detección en SOC y Reglas de Correlación
+En operaciones de seguridad, este escenario se correlaciona ingiriendo eventos cruzados (WAF HTTP status 200/500 con patrones SQLi + registros de PostgreSQL denegando acceso `SQLSTATE 42501`) mediante reglas estándar de detección (formato **Sigma**), permitiendo al SOC contener el vector antes de que escale a una exfiltración masiva.
