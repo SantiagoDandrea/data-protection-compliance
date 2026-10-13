@@ -106,23 +106,13 @@ data-protection-compliance/
 
 Este proyecto se enfoca en resolver la brecha entre la normativa de protección de datos personales y la base de datos (PostgreSQL 16). Para llevar este escenario a un nivel empresarial completo, se definen las siguientes líneas de trabajo y tecnologías a incorporar a futuro:
 
-### 1. Infraestructura como Código (IaC) para Backups Inmutables (Terraform / AWS S3 WORM)
-* **Objetivo:** Mitigar ataques de ransomware como el que sufrió *La Segunda Seguros* en 2023, donde los atacantes intentan destruir o cifrar las copias de seguridad de siniestros y pólizas.
-* **Tecnología a sumar:** Plantillas de **Terraform** para aprovisionar almacenamiento en la nube con **S3 Object Lock en modo COMPLIANCE** (WORM - Write Once Read Many) y cifrado con claves KMS CMK.
-* **Por qué está en el roadmap:** Desplegar almacenamiento inmutable en AWS requiere cuentas activas en la nube y genera costos de retención fijos (los objetos bloqueados no pueden borrarse por 90 días). Queda definido como patrón de diseño para producción.
+- **1. Infraestructura como Código (IaC) para Backups Inmutables (Terraform / AWS S3 WORM)**
 
-### 2. Detección en Tiempo Real para SOC / SIEM (Reglas Sigma)
-* **Objetivo:** Alertar tempranamente cuando un atacante intenta inyectar payloads SQLi (`UNION SELECT`) o explorar esquemas médicos restringidos antes de que comprometa información.
-* **Tecnología a sumar:** Reglas genéricas en formato **Sigma** mapeadas a la técnica **MITRE ATT&CK T1190**, preparadas para compilarse a consultas de SIEM (Elasticsearch, Splunk, Microsoft Sentinel) a partir de logs de WAF y auditoría de base de datos (`pg_audit`).
+- **2. Detección en Tiempo Real para SOC / SIEM (Reglas Sigma)**
 
-### 3. Prevención de Fuga de Datos (DLP)
-* **Objetivo:** Inspeccionar el tráfico saliente (correo corporativo y APIs) para evitar que empleados o atacantes exfiltren listados masivos de clientes o historias clínicas.
-* **Tecnología a sumar:** Reglas de detección basadas en expresiones regulares adaptadas al contexto argentino (validación de DNI y CUIT) y a la salud médica (estándar CIE-10 para diagnósticos clínicos).
+- **3. Prevención de Fuga de Datos (DLP)**
 
-### 4. Hardening Avanzado en PostgreSQL (Row-Level Security y Cifrado)
-* **Objetivo:** Incorporar una capa adicional de aislamiento para que los Productores Asesores de Seguros (PAS) solo puedan consultar las pólizas de su cartera asignada, y cifrar campos médicos en reposo.
-* **Tecnología a sumar:** Políticas de **Row-Level Security (RLS)** dinámicas por sesión y evaluación de la extensión `pgcrypto` para cifrado de columnas sensibles.
-
+- **4. Hardening Avanzado en PostgreSQL (Row-Level Security y Cifrado)**
 ---
 
 ## Decisiones de Diseño y Aprendizajes Técnicos
