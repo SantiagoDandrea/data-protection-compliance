@@ -95,10 +95,13 @@ http://localhost:5000
    - Reglas en JSON para agentes de DLP o Mail Gateways con regex para detectar DNI, CUIT y diagnósticos bajo el estándar CIE-10 en correos salientes.
 
 2. **Inmutabilidad contra Ransomware ([`controls/terraform_s3_worm_backup.tf`](controls/terraform_s3_worm_backup.tf)):**
-   - Código Terraform para armar un bucket S3 con **Object Lock en modo COMPLIANCE** (WORM), impidiendo que un ransomware pueda borrar o cifrar las copias de seguridad de siniestros.
+   - Plantilla de Terraform de referencia para armar un bucket S3 con **Object Lock en modo COMPLIANCE** (WORM) y KMS CMK, impidiendo que un ransomware pueda borrar o cifrar las copias de seguridad. *(Nota: Es un patrón arquitectónico educativo; incluye advertencias operacionales para prevenir bloqueos accidentales en cuentas AWS reales).*
 
-3. **Seguridad en PostgreSQL ([`controls/postgres_hardening.sql`](controls/postgres_hardening.sql)):**
-   - Row-Level Security (RLS) para Productores de Seguros (PAS), cierre de permisos en esquemas y vistas disociadas para analistas de Business Intelligence.
+3. **Seguridad Avanzada en PostgreSQL ([`controls/postgres_hardening.sql`](controls/postgres_hardening.sql)):**
+   - Script SQL autocontenido que complementa el lab aplicando Row-Level Security (RLS) para Productores de Seguros (PAS), extensión `pgcrypto` y vistas disociadas para Business Intelligence (SoD). Se puede ejecutar sobre el contenedor de BD con:
+     ```bash
+     docker compose -f lab/docker-compose.yml exec -T db psql -U postgres -d aseguradora_db -f /dev/stdin < lab/controls/postgres_hardening.sql
+     ```
 
 4. **Detección para SOC ([`detection/`](detection/)):**
    - `sqli_waf.log`: Muestra sintética de logs de acceso HTTP y auditoría de base de datos para ilustrar el escenario de ataque.

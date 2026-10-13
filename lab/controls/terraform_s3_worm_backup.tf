@@ -1,7 +1,20 @@
 # ==============================================================================
-# INFRAESTRUCTURA COMO CÓDIGO (IaC) - REPOSITORIO DE BACKUPS INMUTABLES
+# INFRAESTRUCTURA COMO CÓDIGO (IaC) - REPOSITORIO DE BACKUPS INMUTABLES (S3 WORM)
 # Contexto: Mitigación de Ransomware (T1486 / T1490) en Aseguradora Argentina
 # Lección aprendida: Incidente La Segunda Seguros (LockBit, 2023)
+#
+# ⚠️ ADVERTENCIA DE SEGURIDAD OPERACIONAL Y PROPÓSITO EDUCATIVO:
+# Esta plantilla de Terraform es un PATRÓN ARQUITECTÓNICO DE REFERENCIA.
+# NO está desplegada en una cuenta real de AWS ni forma parte del despliegue local de Docker.
+#
+# IMPACTO CRÍTICO DE S3 OBJECT LOCK EN MODO COMPLIANCE:
+# 1. En modo COMPLIANCE, el bloqueo WORM es absoluto e irreversible:
+#    NI SIQUIERA LA CUENTA ROOT DE AWS puede acortar el período de retención ni borrar
+#    los objetos o el bucket antes del vencimiento (90 días por defecto).
+# 2. Aplicar este código sobre una cuenta real de AWS sin planificar generará costos fijos
+#    y recursos que no podrán ser eliminados hasta cumplido el plazo de retención.
+# 3. Para laboratorios o validaciones iniciales, se recomienda usar modo GOVERNANCE con
+#    una ventana reducida (ej. 1 día) o emular S3 mediante LocalStack.
 # ==============================================================================
 
 terraform {
@@ -14,6 +27,28 @@ terraform {
   }
 }
 
+variable "aws_region" {
+  type        = string
+  default     = "us-east-1"
+  description = "Región de AWS para el vault de backups inmutables"
+}
+
+variable "environment" {
+  type        = string
+  default     = "lab"
+  description = "Ambiente de despliegue (lab / staging / prod). Por defecto 'lab' para evitar confusiones."
+}
+
+variable "retention_days" {
+  type        = number
+  default     = 90
+  description = "Días de retención inmutable WORM garantizados"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
 # 1. Clave de Cifrado Administrada por el Cliente (KMS CMK)
 # Justificación de GRC: Las claves no deben ser administradas por el mismo
 # rol que administra las bases de datos de producción. Separación de funciones (SoD).
@@ -23,7 +58,7 @@ resource "aws_kms_key" "backup_kms_key" {
   enable_key_rotation     = true
 
   tags = {
-    Ambiente       = "Producción"
+    Ambiente       = var.environment == "prod" ? "Producción" : "Laboratorio"
     Clasificacion  = "Restringido"
     MarcoNormativo = "Ley 25.326 / Res. AAIP 47/2018 / ISO 27001 A.8.24"
   }
@@ -33,16 +68,17 @@ resource "aws_kms_key" "backup_kms_key" {
 # Justificación Técnica: Un atacante que comprometa credenciales administrativas
 # NO PUEDE borrar ni sobreescribir los backups durante el período de retención.
 resource "aws_s3_bucket" "immutable_backup_vault" {
-  bucket        = "aseguradora-backups-inmutables-prod"
+  bucket        = "aseguradora-backups-inmutables-${var.environment}"
   force_destroy = false # Medida de protección contra eliminación accidental o maliciosa
 
   # Object Lock DEBE activarse al crear el bucket para habilitar WORM
   object_lock_enabled = true
 
   tags = {
-    Ambiente      = "Producción"
+    Ambiente      = var.environment == "prod" ? "Producción" : "Laboratorio"
     Clasificacion = "Restringido"
     Contenido     = "Dumps de Base de Datos (Pólizas y Salud)"
+    Proposito     = "Plantilla de Mitigación Anti-Ransomware"
   }
 }
 
@@ -63,7 +99,7 @@ resource "aws_s3_bucket_object_lock_configuration" "backup_lock" {
   rule {
     default_retention {
       mode = "COMPLIANCE"
-      days = 90 # Ventana de retención mínima garantizada para recuperación ante desastres
+      days = var.retention_days # Ventana de retención mínima garantizada para recuperación ante desastres
     }
   }
 }

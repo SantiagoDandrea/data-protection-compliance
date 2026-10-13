@@ -4,6 +4,24 @@ En este archivo fui anotando cómo fue mutando el proyecto durante octubre de 20
 
 ---
 
+## Octubre 2026 — Ronda de auditoría técnica externa (Refinamiento de Controles y Alcance)
+
+A partir de una auditoría técnica externa exhaustiva, se aplicaron mejoras puntuales para eliminar inconsistencias entre componentes y transparentar el estado de cada entregable:
+
+1. **Corrección de dependencias en `postgres_hardening.sql`:**
+   El script de hardening intentaba aplicar Row-Level Security (RLS) sobre una columna (`productor_asignado_id`) y roles (`pas_usuario_portal`, `db_analista_bi`) que no estaban definidos en el esquema inicial de `init.sql`. Se actualizó el script para volverlo 100% autocontenido e idempotente: crea los roles y la columna requerida antes de aplicar las políticas, permitiendo que se ejecute sin errores directamente sobre la base de datos del lab.
+
+2. **Advertencia operacional y parametrización en Terraform:**
+   En `terraform_s3_worm_backup.tf`, el recurso S3 Object Lock en modo `COMPLIANCE` (90 días) estaba nombrado como `prod`. En AWS real, esta configuración es irreversible durante el período de retención, incluso para la cuenta root. Se parametrizó el entorno a `lab` por defecto y se incorporó una advertencia destacada sobre las consecuencias operacionales y costos de aplicar WORM estricto en cuentas reales.
+
+3. **Matriz de Validación por Componente en `README.md`:**
+   Se incorporó una tabla de estado técnico que distingue explícitamente entre los artefactos completamente ejecutables en Docker (PostgreSQL 16, app web Flask, exploit en Python y script de hardening SQL) y aquellos que corresponden a patrones y plantillas de referencia (Terraform S3 WORM, regla de detección Sigma y reglas DLP).
+
+4. **Clarificación didáctica en `app.py` y `test_exploit.py`:**
+   Se añadieron comentarios señalando la vulnerabilidad intencional en la consulta de cotización y referenciando la rama segura parametrizada. Asimismo, se reforzó en la salida del script la distinción conceptual entre parametrización (integridad sintáctica en software) y mínimo privilegio (contención del blast radius en la base de datos).
+
+---
+
 ## Octubre 2026 — Ronda de correcciones de fondo y honestidad técnica
 
 Después de armar el laboratorio ejecutable, le pedí a un auditor técnico que revise el repositorio. Me marcó tres cosas bastante concretas y justas que tuve que salir a corregir:

@@ -61,9 +61,16 @@ def consultar():
         return jsonify({"error": "Debe ingresar un número de póliza o payload"}), 400
 
     if use_parameterization:
+        # VERSIÓN SEGURA: Prepared Statements / Consultas Parametrizadas
+        # El driver y el motor tratan la entrada del usuario como un literal estricto,
+        # impidiendo que se altere la estructura sintáctica de la consulta SQL.
         raw_query = "SELECT numero_poliza, titular, cobertura, prima FROM seguros_core.polizas WHERE numero_poliza = %s"
         executed_query = f"{raw_query} [PARAM: {poliza_input}]"
     else:
+        # ⚠️ VULNERABLE POR DISEÑO (LAB DEMO / NO USAR EN PRODUCCIÓN):
+        # Concatenación directa de strings sin sanitizar. Permite inyección SQL clásica (T1190)
+        # mediante payloads como: POL-9999' UNION SELECT ... --
+        # En producción utilizar siempre consultas parametrizadas (ver rama 'if' superior).
         raw_query = f"SELECT numero_poliza, titular, cobertura, prima FROM seguros_core.polizas WHERE numero_poliza = '{poliza_input}'"
         executed_query = raw_query
 

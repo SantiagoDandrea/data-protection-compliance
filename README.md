@@ -111,6 +111,21 @@ data-protection-compliance/
 
 ---
 
+## Matriz de Alcance y Estado de Validación por Componente
+
+Para garantizar máxima transparencia técnica en entrevistas y auditorías, la siguiente tabla distingue entre lo que está **completamente implementado y ejecutable en Docker** y lo que corresponde a **plantillas o patrones arquitectónicos de referencia**:
+
+| Componente | Archivo(s) | Estado de Implementación | Alcance y Modo de Validación |
+|---|---|---|---|
+| **Laboratorio Core (Postgres 16 + Flask)** | [`lab/docker-compose.yml`](lab/docker-compose.yml)<br>[`lab/app/`](lab/app/)<br>[`lab/db/init.sql`](lab/db/init.sql) | ✅ **Ejecutable y Reproducible** | Levanta en local con Docker Compose. Contiene esquemas segregados, roles con mínimo privilegio y dashboard web interactivo (`http://localhost:5000`). |
+| **Prueba de Mitigación CLI** | [`lab/test_exploit.py`](lab/test_exploit.py) | ✅ **Validado en Motor Real** | Script CLI automatizado que reproduce el ataque `UNION SELECT`, verifica la mitigación nativa (`SQLSTATE 42501`) y valida la parametrización en código. |
+| **Hardening de PostgreSQL (RLS / SoD)** | [`lab/controls/postgres_hardening.sql`](lab/controls/postgres_hardening.sql) | ✅ **Script Autocontenido** | Script SQL complementario preparado para correr directamente sobre la base del lab. Configura RLS por cartera de productor, roles dedicados y vistas disociadas para analistas de BI. |
+| **Backups Inmutables (WORM anti-ransomware)** | [`lab/controls/terraform_s3_worm_backup.tf`](lab/controls/terraform_s3_worm_backup.tf) | 📐 **Plantilla IaC de Referencia** | Especificación de Terraform para S3 Object Lock en modo COMPLIANCE y KMS CMK. Es un diseño arquitectónico (no requiere despliegue en cuenta AWS real para el lab). |
+| **Regla de Detección SIEM** | [`lab/detection/sigma_sqli_detection.yml`](lab/detection/sigma_sqli_detection.yml)<br>[`lab/detection/sqli_waf.log`](lab/detection/sqli_waf.log) | 📐 **Regla de Detección de Muestra** | Regla Sigma estándar para correlación SIEM de SQLi (T1190), complementada con trazas sintéticas de WAF/BD de muestra. No incluye SIEM activo en Docker. |
+| **Prevención de Fuga de Datos (DLP)** | [`lab/controls/dlp_rules.json`](lab/controls/dlp_rules.json) | 📐 **Patrones de Detección Propuestos** | Expresiones regulares y diccionarios para detección de DNI, CUIT y CIE-10 (salud); formulados para importarse en gateways de correo o agentes DLP comerciales. |
+
+---
+
 ## Lo que Aprendí en el Camino (Notas del Autor)
 
 Armar este proyecto me sirvió para entender varios choques entre la teoría y la práctica:
