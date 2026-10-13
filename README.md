@@ -2,71 +2,100 @@
 
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
 [![Marco Normativo](https://img.shields.io/badge/Marco-Ley_25.326_%7C_GDPR_%7C_ISO_27001-green.svg)](docs/ley-25326.md)
-[![Estado del Lab](https://img.shields.io/badge/Lab-PostgreSQL_16_%7C_Docker-orange.svg)](lab/README.md)
+[![PoC Técnica](https://img.shields.io/badge/PoC-PostgreSQL_16_%7C_Docker-orange.svg)](lab/README.md)
 
 ---
 
 ## De qué trata este proyecto
 
-Armé este proyecto para bajar a tierra un problema clásico de seguridad y GRC (Gobierno, Riesgo y Cumplimiento) en el rubro asegurador argentino: la distancia que suele haber entre las políticas en papel ("cumplir con la Ley 25.326") y lo que pasa realmente en la base de datos cuando alguien programa mal un sistema.
+Este proyecto desarrolla un **programa de protección de datos personales, clasificación de la información y cumplimiento normativo (GRC)** modelado para una compañía de seguros en Argentina.
 
-En una compañía de seguros conviven dos mundos muy distintos:
-1. Las pólizas comunes de autos o casas (**información confidencial**).
-2. Los diagnósticos médicos de siniestros de ART o seguros de vida (**datos sensibles/restringidos** bajo el Art. 7 de la Ley 25.326).
+En una aseguradora conviven dos universos de datos muy distintos:
+1. **Datos Contractuales y Comerciales (Nivel Confidencial):** Pólizas de automotor, hogar, DNI, datos de contacto y primas aseguradas.
+2. **Datos Sensibles de Salud (Nivel Restringido):** Diagnósticos médicos, peritajes de siniestros laborales de ART, historias clínicas y dictámenes de incapacidad especialmente amparados por el **Artículo 7 de la Ley 25.326**.
 
-Si un atacante encuentra una inyección SQL en el cotizador web público, ¿qué le impide saltar de una tabla de pólizas a leer los historiales médicos de los asegurados? Si la base de datos está conectada con un usuario con permisos amplios, absolutamente nada. La clasificación en un documento de Word no frena un ataque si no está implementada en los permisos del motor.
-
-Para que esto no quede en un ensayo teórico, armé un **laboratorio ejecutable en Docker con PostgreSQL 16**:
-- **Laboratorio Técnico Reproducible ([`lab/`](lab/README.md)):** Muestra en vivo cómo un ataque de SQLi (`UNION SELECT`) salta del esquema de pólizas al de salud si la app usa un usuario sobreprivilegiado, y cómo el motor de Postgres lo frena en seco con un error `SQLSTATE 42501 (INSUFFICIENT PRIVILEGE)` cuando aplicás mínimo privilegio (RBAC y esquemas separados), incluso con la web rota.
-- **Defensa en Profundidad:** Demuestra la separación entre la solución en capa de software (consultas preparadas con `%s`) y la contención en capa de base de datos (segregación de esquemas y usuarios).
+El objetivo central es **cerrar la brecha entre las políticas de seguridad en papel y la arquitectura técnica de datos**. Para ello, el proyecto se estructura en dos pilares:
+- Un **marco de análisis regulatorio y arquitectónico completo** documentado en [`docs/`](docs/).
+- Una **Prueba de Concepto (PoC) técnica y ejecutable en PostgreSQL 16** alojada en [`lab/`](lab/), que demuestra empíricamente por qué la clasificación documental fracasa si la base de datos no implementa mínimo privilegio (RBAC) y cómo el motor nativo contiene el ataque.
 
 ---
 
-## El Problema: Del Cotizador a los Historiales Médicos
+## Índice de Documentación ([`/docs`](docs/))
 
-En una aseguradora, el cotizador web suele ser el front más expuesto. Si ese endpoint tiene una inyección SQL (`UNION SELECT`), el atacante intenta leer cualquier tabla del motor.
+El núcleo de análisis, clasificación y marco regulatorio del proyecto se encuentra estructurado en la carpeta [`docs/`](docs/):
+
+| Documento | Temática Principal | Contenido Destacado |
+|---|---|---|
+| 📋 **[data-classification.md](docs/data-classification.md)** | **Matriz de Clasificación de Datos** | Matriz de 4 niveles adaptada a seguros, análisis de impacto (reputacional, legal y financiero) y análisis del caso real de ransomware en *La Segunda Seguros* (2023). |
+| ⚖️ **[ley-25326.md](docs/ley-25326.md)** | **Marco Normativo Argentino** | Principios de calidad y finalidad, tutela de datos sensibles (Art. 7), deber de seguridad técnica (Art. 9 y Res. AAIP 47/2018), plazos de derechos ARCO y régimen penal (Ley 26.388). |
+| 🔄 **[data-flow.md](docs/data-flow.md)** | **Flujo de Datos y Mapeo de Amenazas** | Diagrama de flujo de datos (DFD) del negocio asegurador, puntos de estrangulamiento (*choke points*) y mapeo de vectores de exfiltración con **MITRE ATT&CK**. |
+| 🌍 **[gdpr-comparacion.md](docs/gdpr-comparacion.md)** | **Comparativa Internacional (GDPR)** | Comparación entre Ley 25.326 y el RGPD europeo: notificación obligatoria de brechas en 72h, principio de responsabilidad proactiva y estatus de adecuación de Argentina ante la UE. |
+| 🛡️ **[security-controls.md](docs/security-controls.md)** | **Controles de Seguridad Técnicos** | Controles obligatorios por nivel (WORM anti-ransomware, DLP, RLS en base de datos) y tensiones operativas reales (cifrado vs rendimiento de índices). |
+
+---
+
+## Matriz de Clasificación de la Información
+
+Para resolver la convivencia de pólizas y peritajes médicos sin caer en esquemas burocráticos o insuficientes, se definió un modelo operativo de **4 niveles** alineado con ISO/IEC 27001 (Control A.5.12) y la Resolución AAIP 47/2018:
+
+| Nivel | Definición Operativa | Ejemplos en la Aseguradora | Impacto ante Fuga / Exposición |
+|---|---|---|---|
+| **1. Público** | Información deliberadamente destinada a divulgación externa. | Cotizaciones abiertas web, folletos comerciales de coberturas, comunicados de prensa. | Nulo. Solo exige controles de integridad contra desfiguración web (*defacement*). |
+| **2. Interno** | Documentación de uso operativo exclusivo para empleados y colaboradores. | Procedimientos de suscripción, organigramas, manuales operativos, actas de comités. | Bajo/Medio. Exposición de procesos sin contingencia legal directa ni afectación a clientes. |
+| **3. Confidencial** | Información contractual, comercial y datos personales (PII) de asegurados. | Pólizas de auto/hogar, DNI/CUIT, vigencias, primas emitidas, cuentas bancarias. | **Alto.** Infracción contractual, pérdida de asegurados y activación del deber de seguridad (Art. 9 Ley 25.326). |
+| **4. Restringido** | **Datos especialmente protegidos (Salud y Seguridad):** historias clínicas y credenciales. | **Diagnósticos de ART**, peritajes de siniestros con lesiones, historias clínicas, credenciales maestras de base de datos. | **Crítico.** Infracción gravísima a datos sensibles (Art. 7 Ley 25.326), responsabilidad penal (Arts. 153 bis / 157 bis CP) y crisis reputacional. |
+
+> **Principio de Segregación:** En una aseguradora, mientras un cliente cotiza o consulta una póliza automotor patrimonial (**Confidencial**), ese flujo no debe tener visibilidad ni acceso a los expedientes de peritajes médicos o siniestros laborales de ART (**Restringido**).
+
+---
+
+## Marco Regulatorio y Dilemas de Negocio
+
+La arquitectura del proyecto responde a tres fricciones reales entre la normativa de protección de datos y la operación de sistemas:
+
+1. **Protección Especial de Datos de Salud (Art. 2 y Art. 7 Ley 25.326):**  
+   Los diagnósticos médicos no son un dato personal ordinario: su tratamiento está prohibido por defecto salvo consentimiento expreso o ley habilitante. No pueden coexistir en la misma bolsa de permisos que una póliza comercial.
+2. **Plazos Estrictos de Derechos ARCO:**  
+   La ley fija plazos perentorios para responder ante los titulares: **10 días corridos para Acceso** (Art. 14 inc. 2) y **5 días hábiles para Rectificación o Supresión** (Art. 16 inc. 2), exigiendo mecanismos eficientes de búsqueda y extracción en las bases de datos.
+3. **El conflicto entre Supresión y Retención Obligatoria por Seguros:**  
+   Si un asegurado exige suprimir sus datos tras rescindir una póliza, la aseguradora no puede eliminarlos a ciegas. La Superintendencia de Seguros de la Nación (SSN) y los plazos de prescripción del Código Civil y Comercial obligan a guardar registros de siniestros por hasta 10 años (en ART). La salida técnica adecuada es el **bloqueo y disociación de registros** (*tombstoning*), dejando los datos aislados exclusivamente para requerimientos judiciales o periciales.
+
+---
+
+## Validación Técnica: Prueba de Concepto en PostgreSQL 16 ([`lab/`](lab/README.md))
+
+Para demostrar empíricamente por qué la clasificación en un documento de Word es inútil si la base de datos tiene permisos planos, se implementó un **laboratorio ejecutable en Docker**:
 
 ```mermaid
 flowchart TD
     subgraph Entrada ["Perímetro & DMZ"]
-        USR["Usuario / Atacante"] -->|HTTP / Payload SQLi| API["Cotizador Web"]
+        USR["Usuario / Atacante"] -->|HTTP / Payload SQLi| API["Cotizador Web (Flask)"]
     end
 
     subgraph Base_Datos ["Motor PostgreSQL 16"]
-        API -->|Opción A: app_user_overprivileged| DB_VULN["Consulta SQL vulnerable"]
+        API -->|Opción A: app_user_overprivileged| DB_VULN["Consulta vulnerable (sin RBAC)"]
         DB_VULN -->|UNION SELECT| HEALTH["salud_restringida.historial_medico<br/><b>🚨 DATA BREACH (Salto a Restringido)</b>"]
 
-        API -->|Opción B: app_user_least_privilege| DB_SEC["Consulta SQL vulnerable"]
-        DB_SEC -->|Permission Denied| HEALTH_BLOCKED["salud_restringida.historial_medico<br/><b>🛡️ BLOQUEO POR MOTOR (Defensa en Profundidad)</b>"]
+        API -->|Opción B: app_user_least_privilege| DB_SEC["Consulta vulnerable (con RBAC)"]
+        DB_SEC -->|Permission Denied| HEALTH_BLOCKED["salud_restringida.historial_medico<br/><b>🛡️ BLOQUEO NATIVO POR MOTOR (SQLSTATE 42501)</b>"]
     end
 ```
 
----
+### El escenario demostrado:
+* Un atacante aprovecha una vulnerabilidad web (**SQL Injection — MITRE ATT&CK T1190**) en el cotizador de pólizas.
+* **Escenario Vulnerable:** Si la aplicación conecta con un usuario sobreprivilegiado, el atacante usa `UNION SELECT` para saltar del esquema `seguros_core` al esquema `salud_restringida` y extrae diagnósticos médicos de siniestros (**Salto de Confidencial a Restringido - Fuga Masiva**).
+* **Mitigación por Mínimo Privilegio (RBAC):** Si la app conecta con una cuenta con privilegios mínimos, **el motor PostgreSQL rechaza la consulta nativamente con `SQLSTATE 42501 (INSUFFICIENT_PRIVILEGE)`**, conteniendo la brecha incluso con la aplicación web rota.
+* **Mitigación en Software:** Demuestra cómo la parametrización de consultas (*Prepared Statements* con `%s`) neutraliza el vector en la capa de software.
 
-## Cómo Probar el Laboratorio (PostgreSQL 16)
-
-El lab está armado para levantarse con Docker:
-
-### 1. Levantar los contenedores:
+### Cómo ejecutar la PoC (Guía rápida):
 ```bash
+# 1. Levantar PostgreSQL 16 y la aplicación web
 docker compose -f lab/docker-compose.yml up -d
-```
-Esto levanta PostgreSQL 16 (con los esquemas `seguros_core` y `salud_restringida`, roles y datos de prueba ya cargados vía `init.sql`) y una app web en Flask.
 
-### 2. Correr la prueba por consola:
-Podés ejecutar el script de exploit directamente dentro del contenedor sin instalar nada en tu máquina:
-```bash
+# 2. Ejecutar la prueba automatizada del exploit y mitigación
 docker compose -f lab/docker-compose.yml exec web python test_exploit.py
 ```
-
-El script hace cuatro pasos:
-1. Tira una consulta normal de póliza (`POL-2026-001`).
-2. Tira el exploit con el usuario sobreprivilegiado y te muestra los diagnósticos médicos en pantalla (**Data Breach**).
-3. Tira el mismo exploit con el usuario de mínimo privilegio y muestra cómo Postgres aborta la consulta con `SQLSTATE 42501 (INSUFFICIENT_PRIVILEGE)`.
-4. Muestra la solución en el código usando consultas preparadas (`%s`).
-
-### 3. Probarlo desde el navegador:
-Abrí `http://localhost:5000` en tu navegador. Armé una interfaz visual donde podés alternar entre el usuario vulnerable y el seguro, probar payloads con un clic y ver qué responde la base de datos en vivo.
+*(También se puede acceder vía navegador a `http://localhost:5000` para probar los payloads interactivamente. Para la guía paso a paso y detalles de configuración, consultar el [README del Laboratorio](lab/README.md)).*
 
 ---
 
@@ -75,29 +104,23 @@ Abrí `http://localhost:5000` en tu navegador. Armé una interfaz visual donde p
 ```text
 data-protection-compliance/
 │
-├── README.md                      # Explicación general, arquitectura y guía rápida
+├── README.md                      # Marco general, clasificación y guía de navegación
 ├── LICENSE                        # Licencia MIT
 │
-├── docs/                          # Documentación de análisis y marco regulatorio
+├── docs/                          # Núcleo del Marco de Trabajo y Análisis de Cumplimiento
 │   ├── data-classification.md     # Matriz de 4 niveles, análisis de impacto y caso La Segunda
-│   ├── security-controls.md       # Controles técnicos (WORM, DLP, RLS) y fricciones operativas
-│   ├── data-flow.md               # Flujo de datos, diagrama de arquitectura y mapeo MITRE ATT&CK
 │   ├── ley-25326.md               # Ley 25.326, Res. AAIP 47/2018 y delitos informáticos (Ley 26.388)
-│   └── gdpr-comparacion.md        # Comparación con GDPR, estatus de adecuación y notificación en 72h
+│   ├── data-flow.md               # Flujo de datos del negocio asegurador y mapeo MITRE ATT&CK
+│   ├── gdpr-comparacion.md        # Comparación con GDPR, estatus de adecuación y notificación en 72h
+│   └── security-controls.md       # Controles técnicos obligatorios por nivel y trade-offs
 │
-└── lab/                           # Laboratorio técnico reproducible (PostgreSQL 16)
-    ├── README.md                  # Instrucciones detalladas del lab
+└── lab/                           # Prueba de Concepto Técnica (PostgreSQL 16 & Docker)
+    ├── README.md                  # Instrucciones detalladas de ejecución de la PoC
     ├── docker-compose.yml         # Contenedores de PostgreSQL 16 y Flask
-    ├── .env.example               # Ejemplo de variables de entorno y nota sobre credenciales
-    ├── test_exploit.py            # Script CLI para ejecutar y verificar la mitigación
-    ├── app/                       # Código de la aplicación web Flask y dashboard interactivo
-    │   ├── Dockerfile
-    │   ├── requirements.txt
-    │   ├── app.py                 # Servidor web Flask
-    │   └── templates/
-    │       └── index.html         # Frontend web para pruebas
-    └── db/                        # DDL de PostgreSQL
-        └── init.sql               # Esquemas segregados, datos sintéticos y roles con RBAC
+    ├── .env.example               # Variables de entorno y nota sobre credenciales
+    ├── test_exploit.py            # Script CLI para verificar la contención por permisos
+    ├── app/                       # Código de la aplicación web y dashboard interactivo
+    └── db/                        # DDL de PostgreSQL (esquemas segregados y roles con RBAC)
 ```
 
 ---
@@ -106,13 +129,14 @@ data-protection-compliance/
 
 Este proyecto se enfoca en resolver la brecha entre la normativa de protección de datos personales y la base de datos (PostgreSQL 16). Para llevar este escenario a un nivel empresarial completo, se definen las siguientes líneas de trabajo y tecnologías a incorporar a futuro:
 
-- **1. Infraestructura como Código (IaC) para Backups Inmutables (Terraform / AWS S3 WORM)**
+1. **Infraestructura como Código (IaC) para Backups Inmutables (Terraform / AWS S3 WORM)**
 
-- **2. Detección en Tiempo Real para SOC / SIEM (Reglas Sigma)**
+2. **Detección en Tiempo Real para SOC / SIEM (Reglas Sigma)**
 
-- **3. Prevención de Fuga de Datos (DLP)**
+3. **Prevención de Fuga de Datos (DLP)**
 
-- **4. Hardening Avanzado en PostgreSQL (Row-Level Security y Cifrado)**
+4. **Hardening Avanzado en PostgreSQL (Row-Level Security y Cifrado)**
+
 ---
 
 ## Decisiones de Diseño y Aprendizajes Técnicos
@@ -123,10 +147,10 @@ Durante el desarrollo del proyecto surgieron varios desafíos técnicos y de neg
    Vi con mis propios ojos que una configuración de permisos básica o una tabla de control de acceso por sí sola no es suficiente si la aplicación web contiene fallas o vulnerabilidades explotables. Por eso es indispensable combinar controles en capas: consultas preparadas en el software para neutralizar la inyección en la entrada, junto con segregación de esquemas y usuarios con mínimo privilegio para contener el impacto si la aplicación falla.
 
 2. **El conflicto entre derecho de supresión y retención legal en seguros:**  
-   En una aseguradora, el derecho del titular a exigir la supresión de sus datos entra en conflicto con las normativas de la Superintendencia de Seguros de la Nación y los plazos de prescripción de siniestros. Para resolverlo sin incumplir ninguna de las dos normativas, la salida adecuada no es borrar físicamente el registro, sino aplicar **bloqueo y disociación** (*tombstoning*), restringiendo el acceso exclusivamente a requerimientos judiciales o periciales.
+   En una aseguradora, el derecho del titular a exigir la supresión de sus datos entra en conflicto con las normativas de la Superintendencia de Seguros de la Nación y los plazos de prescripción de siniestros. Para resolverlo sin incumplir ninguna de las dos normativas, la salida adecuada no es borrar físicamente el registro, sino aplicar bloqueo y disociación (tombstoning), restringiendo el acceso exclusivamente a requerimientos judiciales o periciales.
 
 3. **Criterio de clasificación de 4 niveles adaptado al sector asegurador:**  
-   Los esquemas habituales de 3 niveles (Público, Interno, Confidencial) suelen cometer el error de agrupar datos personales comunes (DNI, contacto) con información de salud. Un modelo de **4 niveles (Público, Interno, Confidencial y Restringido)** permite aislar bajo controles técnicos mucho más estrictos la información sensible amparada por el Art. 7 de la Ley 25.326 (historias clínicas, peritajes médicos de siniestros y diagnósticos de ART).
+   Los esquemas habituales de 3 niveles (Público, Interno, Confidencial) suelen cometer el error de agrupar datos personales comunes (DNI, contacto) con información de salud. Un modelo de 4 niveles (Público, Interno, Confidencial y Restringido) permite aislar bajo controles técnicos mucho más estrictos la información sensible amparada por el Art. 7 de la Ley 25.326 (historias clínicas, peritajes médicos de siniestros y diagnósticos de ART).
 
 ---
 
